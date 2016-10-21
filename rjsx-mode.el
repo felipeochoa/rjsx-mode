@@ -253,15 +253,17 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
   (let ((pn (make-jsx-spread :pos (1- (js2-current-token-beg))))
         expr)
     (js2-must-match js2-TRIPLEDOT "msg.syntax")  ; Does not consume on error
-    (setq expr (js2-parse-assign-expr))  ; Assuming no tokens consumed when error
-    (setf (jsx-spread-expr pn) expr)
-    (js2-node-add-children pn expr)
-    (unless (js2-match-token js2-RC t)  ; Won't consume on error
-      (js2-report-error "msg.no.rc.after.spread"
-                        (js2-node-pos pn)
-                        (- (js2-current-token-end) (js2-node-pos pn))))
-    (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
-    pn))
+    (setq expr (js2-parse-assign-expr))  ; No tokens consumed when error
+    (if (js2-error-node-p expr)
+        expr
+      (unless (js2-match-token js2-RC t)  ; Won't consume on error
+        (js2-report-error "msg.no.rc.after.spread" nil
+                          (js2-node-pos pn)
+                          (- (js2-current-token-end) (js2-node-pos pn))))
+      (setf (jsx-spread-expr pn) expr)
+      (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
+      (js2-node-add-children pn expr)
+      pn)))
 
 (defun rjsx-parse-single-attr ()
   "Parse an 'a=b' JSX attribute and return the corresponding XML node."
