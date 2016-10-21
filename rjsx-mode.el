@@ -319,7 +319,7 @@ Returns a JS2-ERROR-NODE if unable to parse."
   "Parse an XML child node and add it to PARENT.
 Child nodes include plain (unquoted) text, other XML elements,
 and {}-bracketed expressions"
-  (let ((tt (js2-get-next-xml-token)))
+  (let ((tt (rjsx-get-next-xml-token)))
     (rjsx-maybe-message "child type `%s' for `%s'" tt (jsx-identifier-full-name (jsx-node-name parent)))
     (cond
       ((= tt js2-LT)       (rjsx-maybe-message "xml-or-close") (rjsx-parse-xml-or-closing-tag parent))
@@ -358,7 +358,7 @@ and {}-bracketed expressions"
       (rjsx-maybe-message "parsing a child XML item")
       (jsx-node-push-child parent (rjsx-parse-xml)))))
 
-(defun js2-get-next-xml-token ()
+(defun rjsx-get-next-xml-token ()
   "Scan through the XML text and push one token onto the stack."
   (setq js2-ts-string-buffer nil)  ; for recording the text
   (setq js2-ti-lookahead 0)
