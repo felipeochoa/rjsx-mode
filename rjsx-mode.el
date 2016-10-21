@@ -393,7 +393,10 @@ and {}-bracketed expressions"
 (defun rjsx-get-next-xml-token ()
   "Scan through the XML text and push one token onto the stack."
   (setq js2-ts-string-buffer nil)  ; for recording the text
-  (setq js2-ti-lookahead 0)
+  (when (> js2-ti-lookahead 0)
+    (setq js2-ts-cursor (js2-current-token-end))
+    (setq js2-ti-lookahead 0))
+
   (let ((beg js2-ts-cursor)
         (token (js2-new-token 0))
         c)
