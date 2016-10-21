@@ -268,30 +268,39 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
 (defun rjsx-parse-single-attr ()
   "Parse an 'a=b' JSX attribute and return the corresponding XML node."
   (let ((pn (make-jsx-attr)) name value)
-    (setq name (rjsx-parse-identifier 'jsx-attr)) ; Won't parse on error
-    (setf (jsx-attr-name pn) name)
-    (js2-node-add-children pn name)
-    (setf (js2-node-pos pn) (js2-node-pos name))
-    (rjsx-maybe-message "Got the name for the attr: %s" (if (= (js2-node-type name) js2-ERROR) "ERROR" (jsx-identifier-full-name name)))
-    (if (js2-must-match js2-ASSIGN "msg.no.equals.after.jsx.prop")  ; Won't consume on error
-        (setf (jsx-attr-value pn)
-              (setq value
-                    (if (js2-match-token js2-LC)
-                        (prog1 (js2-parse-assign-expr)
-                          ;; TODO: report the missing right curly starting at the left curly
-                          (rjsx-maybe-message "parse expression")
-                          (if (js2-must-match js2-RC "msg.syntax")
-                              (rjsx-maybe-message "matched RC")
-                            (rjsx-maybe-message "did not match RC")))
-                      ;; TODO: JSX does not allow backslash escaped quotation marks inside strings
-                      (when (js2-must-match js2-STRING "msg.no.quotes.after.jsx.prop")
-                        (make-js2-string-node)))))
-      (rjsx-maybe-message "Did not find an equals after the attribute"))
-    (rjsx-maybe-message "value type: '%s'" (when value (js2-node-type value)))
-    (setf (js2-node-len pn) (- js2-ts-cursor (js2-node-pos pn)))
-    (rjsx-maybe-message "Finished single attribute.")
-    (js2-node-add-children pn value)
-    pn))
+    (setq name (rjsx-parse-identifier 'jsx-attr)) ; Won't consume token on error
+    (if (js2-error-node-p name)
+        name
+      (setf (jsx-attr-name pn) name)
+      (js2-node-add-children pn name)
+      (rjsx-maybe-message "Got the name for the attr: %s"
+                          (if (= (js2-node-type name) js2-ERROR)
+                              "ERROR"
+                            (jsx-identifier-full-name name)))
+      (if (js2-must-match js2-ASSIGN "msg.no.equals.after.jsx.prop")  ; Won't consume on error
+          (if (js2-match-token js2-LC)
+              (if (js2-match-token js2-RC)
+                (progn (js2-report-error "msg.empty.expr" nil (1- (js2-current-token-beg)) 2)
+                       (setq value (make-js2-error-node :pos (1- (js2-current-token-beg)) :len 2)))
+              (setq value (js2-parse-assign-expr))
+              (rjsx-maybe-message "parsed expression of type %s" (js2-node-type value))
+              (if (js2-match-token js2-RC "msg.syntax")
+                  (rjsx-maybe-message "matched RC")
+                (while (not (memql (js2-get-token) (list js2-RC js2-EOF))))
+                (js2-report-error "msg.no.rc.after.spread" nil (1- (js2-node-pos value))
+                                  (- (js2-current-token-end) (js2-node-pos value) -1))))
+          ;; TODO: JSX does not allow backslash escaped quotation marks inside strings
+          (if (js2-must-match js2-STRING "msg.no.quotes.after.jsx.prop")
+              (setq value (make-js2-string-node))
+            (setq value (make-js2-error-node :pos (js2-current-token-end) :len (js2-current-token-len)))))
+        (rjsx-maybe-message "Did not find an equals after the attribute")
+        (setq value (make-js2-error-node :pos (js2-current-token-end) :len (js2-current-token-len))))
+      (rjsx-maybe-message "value type: '%s'" (js2-node-type value))
+      (setf (jsx-attr-value pn) value)
+      (setf (js2-node-len pn) (- (js2-node-end value) (js2-node-pos pn)))
+      (js2-node-add-children pn value)
+      (rjsx-maybe-message "Finished single attribute.")
+      pn)))
 
 (defun rjsx-parse-identifier (&optional face)
   "Parse a possibly namespaced identifier and fontify with FACE if given.
