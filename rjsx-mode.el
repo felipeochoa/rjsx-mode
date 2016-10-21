@@ -42,6 +42,7 @@
 (js2-msg "msg.no.equals.after.jsx.prop" "missing = after prop name")
 (js2-msg "msg.no.quotes.after.jsx.prop" "missing quoted value after prop name")
 (js2-msg "msg.no.rc.after.expr" "missing } after expression")
+(js2-msg "msg.empty.expr" "empty {} expression")
 
 (defgroup rjsx-mode nil
   "Real support for JSX in Emacs"
@@ -233,7 +234,11 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
       (jsx-node-push-prop
        parent
        (if (js2-match-token js2-LC)
-           (rjsx-parse-spread)
+           (if (js2-match-token js2-RC)
+               (js2-report-error "msg.empty.expr"
+                                 (1- (js2-current-token-beg))
+                                 (js2-current-token-end))
+             (rjsx-parse-spread))
          (rjsx-parse-single-attr)))
       (when (= pos (js2-current-token-beg))
         (if js2-recover-from-parse-errors
@@ -315,7 +320,12 @@ and {}-bracketed expressions"
     (rjsx-maybe-message "child type `%s' for `%s'" tt (jsx-identifier-full-name (jsx-node-name parent)))
     (cond
       ((= tt js2-LT)       (rjsx-maybe-message "xml-or-close") (rjsx-parse-xml-or-closing-tag parent))
-      ((= tt js2-LC)       (rjsx-maybe-message "parsing expression { %s" (js2-peek-token)) (jsx-node-push-child parent (js2-parse-assign-expr))
+      ((= tt js2-LC)       (rjsx-maybe-message "parsing expression { %s" (js2-peek-token))
+                           (if (js2-match-token js2-RC)
+                               (js2-report-error "msg.empty.expr"
+                                                 (1- (js2-current-token-beg))
+                                                 (js2-current-token-end))
+                             (jsx-node-push-child parent (js2-parse-assign-expr)))
                            (rjsx-maybe-message "parsed expression, type: `%s'" (js2-node-type (car (last (jsx-node-kids parent)))))
                            (js2-must-match js2-RC "msg.no.rc.after.expr")
                            (rjsx-maybe-message "maybe matched } after expression"))
