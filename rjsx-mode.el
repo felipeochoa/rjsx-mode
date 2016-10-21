@@ -344,7 +344,7 @@ Returns a JS2-ERROR-NODE if unable to parse."
         (setf (js2-node-len pn) (- (js2-current-token-end) beg)
               (jsx-identifier-name pn) (apply #'concat (nreverse name-parts)))
         pn)
-    (make-js2-error-node)))
+    (make-js2-error-node :len (js2-current-token-len))))
 
 
 (defun rjsx-parse-child (parent)
@@ -370,7 +370,7 @@ and {}-bracketed expressions"
 
 (defun rjsx-parse-xml-or-closing-tag (parent)
   "Parse a JSX tag, closing an open tag if necessary, adding the child or closing tag to PARENT."
-  (let ((beg js2-ts-cursor) name)
+  (let ((beg (js2-current-token-beg)) name)
     (if (js2-match-token js2-DIV)
         (progn (setq name (rjsx-parse-identifier 'jsx-tag))
                (rjsx-maybe-message "parsed closing name: `%s'"
@@ -381,11 +381,11 @@ and {}-bracketed expressions"
                                                               (jsx-identifier-full-name name))))
                    (pop rjsx-tags)
                  (js2-report-error "msg.mismatched.close.tag" (pop rjsx-tags)))
-               (if (js2-must-match js2-GT "msg.no.gt.in.closer" beg (- js2-ts-cursor beg))
+               (if (js2-must-match js2-GT "msg.no.gt.in.closer" beg (- (js2-current-token-end) beg))
                    (rjsx-maybe-message "parsed closing tag")
                  (rjsx-maybe-message "missing closing `>'"))
                (js2-node-add-children parent name)
-               (setf (js2-node-len parent) (- js2-ts-cursor (js2-node-pos parent)))
+               (setf (js2-node-len parent) (- (js2-current-token-end) (js2-node-pos parent)))
                (rjsx-maybe-message "set closing tag"))
       (rjsx-maybe-message "parsing a child XML item")
       (jsx-node-push-child parent (rjsx-parse-xml)))))
@@ -424,6 +424,7 @@ and {}-bracketed expressions"
             (js2-get-char)
             (js2-set-string-from-buffer token)
             (setf (js2-token-type token) (if (= c ?<) js2-LT js2-LC))
+            (setf (js2-token-string token) (string c))
             (throw 'return (js2-token-type token))))
 
          ((= c js2-EOF_CHAR) (throw 'jsx-eof-while-parsing t))
