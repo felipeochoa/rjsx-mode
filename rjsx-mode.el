@@ -16,14 +16,20 @@
 (require 'cl-lib)
 (require 'js2-mode)
 
+(defgroup rjsx-mode nil
+  "Real support for JSX in Emacs"
+  :group 'js2-mode)
+
 ;;;###autoload
 (define-minor-mode rjsx-mode
   "Enable highlighting and syntax checking of JSX snippets."
   :lighter ":RJSX"
+  :group 'rjsx-mode
+  ;; TODO: should we set js2-compiler-xml-available?
   (if rjsx-mode
       (advice-add 'js2-parse-xml-initializer :override #'rjsx-parse-top-xml)
-    ;; TODO: should we set js2-compiler-xml-available?
     (advice-remove 'js2-parse-xml-initializer #'rjsx-parse-top-xml)))
+
 
 ;;Token types for XML nodes. Never returned by scanner
 (defvar js2-JSX            (+ 1 js2-num-tokens))
@@ -44,9 +50,6 @@
 (js2-msg "msg.no.rc.after.expr" "missing } after expression")
 (js2-msg "msg.empty.expr" "empty {} expression")
 
-(defgroup rjsx-mode nil
-  "Real support for JSX in Emacs"
-  :group 'js2-mode)
 
 (defface jsx-tag
   '((t . (:inherit font-lock-function-name-face)))
