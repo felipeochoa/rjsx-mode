@@ -26,9 +26,15 @@
   :lighter ":RJSX"
   :group 'rjsx-mode
   ;; TODO: should we set js2-compiler-xml-available?
+  (advice-add 'js2-parse-xml-initializer :around #'rjsx-parse-xml-initializer))
+
+(defun rjsx-parse-xml-initializer (js2-parser)
+  "Dispatch the xml parser based on `rjsx-mode' being active or not.
+This function is used to advise `js2-parse-xml-initializer' using
+the `:around' combinator.  JS2-PARSER is the original XML parser."
   (if rjsx-mode
-      (advice-add 'js2-parse-xml-initializer :override #'rjsx-parse-top-xml)
-    (advice-remove 'js2-parse-xml-initializer #'rjsx-parse-top-xml)))
+      (rjsx-parse-top-xml)
+    (apply js2-parser)))
 
 
 ;;Token types for XML nodes. Never returned by scanner
