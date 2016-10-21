@@ -228,25 +228,40 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
 
 (defun rjsx-parse-attributes (parent)
   "Parse all attributes, including key=value and {...spread}, and add them to PARENT."
-  ;; This function needs to take care not to be stuck in an infinite
-  ;; loop during parser errors, so it tracks its position on every
-  ;; iteration to make sure it's making progress
-  (let (pos)
-    (while (not (or (= (js2-peek-token) js2-DIV) (= (js2-peek-token) js2-GT)))
-      (setq pos (js2-current-token-beg))
-      (jsx-node-push-prop
-       parent
+  ;; Getting this function to not hang in the loop proved tricky. The
+  ;; key is that `rjsx-parse-spread' and `rjsx-parse-single-attr' both
+  ;; return `js2-error-node's if they fail to consume any tokens,
+  ;; which signals to us that we just need to discard one token and
+  ;; keep going.
+  (let (attr
+        (max-iter 100)
+        ; MAX-ITER is an awful hack, and I think superfluous at this
+        ; point, but C-g hasn't been working for me and it's a huge
+        ; headache when trying to use this mode. Once we have tests
+        ; this can go easily
+        (loop-terminators (list js2-DIV js2-GT js2-EOF js2-ERROR)))
+    (while (not (memql (js2-peek-token) loop-terminators))
+      (rjsx-maybe-message "Starting loop. Next token type: %s\nToken pos: %s" (js2-peek-token) (js2-current-token-beg))
+      (when (= 0 (cl-decf max-iter)) (error "Too many iterations"))
+      (setq attr
        (if (js2-match-token js2-LC)
-           (if (js2-match-token js2-RC)
-               (js2-report-error "msg.empty.expr"
-                                 (1- (js2-current-token-beg))
-                                 (js2-current-token-end))
+           (if (= (js2-peek-token) js2-RC)
+               ;; We don't use match since the other error conditions
+               ;; don't consume tokens, so we uniformly call js2-get-token below
+               (prog1
+                   (make-js2-error-node :pos (1- (js2-current-token-beg)) :len 2)
+                 (rjsx-maybe-message "Parsed empty {}")
+                 (js2-report-error "msg.empty.expr" nil
+                                   (1- (js2-current-token-beg))
+                                   (js2-current-token-end)))
+             (rjsx-maybe-message "Parsed spread")
              (rjsx-parse-spread))
+         (rjsx-maybe-message "Parsing single attr")
          (rjsx-parse-single-attr)))
-      (when (= pos (js2-current-token-beg))
-        (if js2-recover-from-parse-errors
-            (js2-get-token)
-          (error "Unable to parse JSX attributes"))))))
+      (when (js2-error-node-p attr) (js2-get-token))
+                                        ; TODO: We should make this conditional on
+                                        ; `js2-recover-from-parse-errors'
+      (jsx-node-push-prop parent attr))))
 
 (defun rjsx-parse-spread ()
   "Parse an {...props} attribute."
