@@ -336,7 +336,7 @@ and {}-bracketed expressions"
       ((= tt js2-LT)       (rjsx-maybe-message "xml-or-close") (rjsx-parse-xml-or-closing-tag parent))
       ((= tt js2-LC)       (rjsx-maybe-message "parsing expression { %s" (js2-peek-token))
                            (if (js2-match-token js2-RC)
-                               (js2-report-error "msg.empty.expr"
+                               (js2-report-error "msg.empty.expr" nil
                                                  (1- (js2-current-token-beg))
                                                  (js2-current-token-end))
                              (jsx-node-push-child parent (js2-parse-assign-expr)))
