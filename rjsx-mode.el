@@ -202,35 +202,36 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
     (rjsx-maybe-message "cleared <")
     (setf (jsx-node-name pn) (setq name-n (rjsx-parse-identifier 'jsx-tag)))
     (if (js2-error-node-p name-n)
-        (rjsx-maybe-message "could not parse tag name")
-      (rjsx-maybe-message "cleared tag name: '%s'" (jsx-identifier-full-name name-n)))
-    ;; Now parse the attributes
-    (rjsx-parse-attributes pn)
-    (rjsx-maybe-message "cleared attributes")
-    (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
-    ;; Now parse either a self closing tag or the end of the opening tag
-    (rjsx-maybe-message "next type: %s" (js2-peek-token))
-    (if (setq self-closing (js2-match-token js2-DIV))
-        ;; TODO: make sure there's no whitespace between / and >
-        (js2-must-match js2-GT "msg.no.gt.after.slash" (js2-node-pos pn) (js2-node-len pn))
-      (js2-must-match js2-GT "msg.no.gt.in.opener" (js2-node-pos pn) (js2-node-len pn)))
-    (rjsx-maybe-message "cleared opener closer, self-closing: %s" self-closing)
-    (if self-closing
-        (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
-      (push (unless (= (js2-node-type name-n) js2-ERROR)
-              (jsx-identifier-full-name name-n))
-            rjsx-tags)
-      (setq curr-depth (length rjsx-tags))
-      (while (<= curr-depth (length rjsx-tags))
-        ;; TODO: Why is this <= and not =??
-        ;; rjsx-parse-child calls our scanner, which always moves
-        ;; forward at least one character. If it hits EOF, it
-        ;; signals to our caller, so we don't have to worry about infinite loops here
-        (rjsx-parse-child pn))
-      (if (js2-error-node-p name-n)
-          (rjsx-maybe-message "cleared children for ERROR")
-        (rjsx-maybe-message "cleared children for `%s'" (jsx-identifier-full-name name-n))))
-    pn))
+        (progn (rjsx-maybe-message "could not parse tag name")
+               (make-js2-error-node :pos (js2-node-pos pn) :len (1+ (js2-node-len name-n))))
+      (rjsx-maybe-message "cleared tag name: '%s'" (jsx-identifier-full-name name-n))
+      ;; Now parse the attributes
+      (rjsx-parse-attributes pn)
+      (rjsx-maybe-message "cleared attributes")
+      (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
+      ;; Now parse either a self closing tag or the end of the opening tag
+      (rjsx-maybe-message "next type: %s" (js2-peek-token))
+      (if (setq self-closing (js2-match-token js2-DIV))
+          ;; TODO: make sure there's no whitespace between / and >
+          (js2-must-match js2-GT "msg.no.gt.after.slash" (js2-node-pos pn) (js2-node-len pn))
+        (js2-must-match js2-GT "msg.no.gt.in.opener" (js2-node-pos pn) (js2-node-len pn)))
+      (rjsx-maybe-message "cleared opener closer, self-closing: %s" self-closing)
+      (if self-closing
+          (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
+        (push (unless (= (js2-node-type name-n) js2-ERROR)
+                (jsx-identifier-full-name name-n))
+              rjsx-tags)
+        (setq curr-depth (length rjsx-tags))
+        (while (<= curr-depth (length rjsx-tags))
+          ;; TODO: Why is this <= and not =??
+          ;; rjsx-parse-child calls our scanner, which always moves
+          ;; forward at least one character. If it hits EOF, it
+          ;; signals to our caller, so we don't have to worry about infinite loops here
+          (rjsx-parse-child pn))
+        (if (js2-error-node-p name-n)
+            (rjsx-maybe-message "cleared children for ERROR")
+          (rjsx-maybe-message "cleared children for `%s'" (jsx-identifier-full-name name-n))))
+      pn)))
 
 (defun rjsx-parse-attributes (parent)
   "Parse all attributes, including key=value and {...spread}, and add them to PARENT."
