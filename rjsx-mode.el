@@ -247,23 +247,31 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
       (when (= 0 (cl-decf max-iter)) (error "Too many iterations"))
       (setq attr
        (if (js2-match-token js2-LC)
-           (if (= (js2-peek-token) js2-RC)
-               ;; We don't use match since the other error conditions
-               ;; don't consume tokens, so we uniformly call js2-get-token below
-               (prog1
-                   (make-js2-error-node :pos (1- (js2-current-token-beg)) :len 2)
-                 (rjsx-maybe-message "Parsed empty {}")
-                 (js2-report-error "msg.empty.expr" nil
-                                   (1- (js2-current-token-beg))
-                                   (js2-current-token-end)))
-             (rjsx-maybe-message "Parsed spread")
-             (rjsx-parse-spread))
+           (or (rjsx-check-for-empty-curlies t)
+               (prog1 (rjsx-parse-spread)
+                 (rjsx-maybe-message "Parsed spread")))
          (rjsx-maybe-message "Parsing single attr")
          (rjsx-parse-single-attr)))
       (when (js2-error-node-p attr) (js2-get-token))
                                         ; TODO: We should make this conditional on
                                         ; `js2-recover-from-parse-errors'
       (jsx-node-push-prop parent attr))))
+
+
+(defun rjsx-check-for-empty-curlies (&optional dont-consume-rc)
+  "If the following token is '}' set empty curly errors.
+If DONT-CONSUME-RC is true, the matched right curly token won't
+be consumed.  Returns a `js2-error-node' if the curlies are empty
+or nil otherwise."
+  (let ((beg (js2-current-token-beg)) len) ; Where the '{' is
+    (when (js2-match-token js2-RC)
+      (setq len (- (js2-current-token-end) beg))
+      (when dont-consume-rc
+        (js2-unget-token))
+      (js2-report-error "msg.empty.expr" nil beg len)
+      (rjsx-maybe-message "Parsed empty {}")
+      (make-js2-error-node :pos beg :len len))))
+
 
 (defun rjsx-parse-spread ()
   "Parse an {...props} attribute."
@@ -296,16 +304,15 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
                             (jsx-identifier-full-name name)))
       (if (js2-must-match js2-ASSIGN "msg.no.equals.after.jsx.prop")  ; Won't consume on error
           (if (js2-match-token js2-LC)
-              (if (js2-match-token js2-RC)
-                (progn (js2-report-error "msg.empty.expr" nil (1- (js2-current-token-beg)) 2)
-                       (setq value (make-js2-error-node :pos (1- (js2-current-token-beg)) :len 2)))
-              (setq value (js2-parse-assign-expr))
-              (rjsx-maybe-message "parsed expression of type %s" (js2-node-type value))
-              (if (js2-match-token js2-RC "msg.syntax")
-                  (rjsx-maybe-message "matched RC")
-                (while (not (memql (js2-get-token) (list js2-RC js2-EOF))))
-                (js2-report-error "msg.no.rc.after.spread" nil (1- (js2-node-pos value))
-                                  (- (js2-current-token-end) (js2-node-pos value) -1))))
+            (or (setq value (rjsx-check-for-empty-curlies))
+                (prog1 (setq value (js2-parse-assign-expr))
+                  (rjsx-maybe-message "parsed expression of type %s" (js2-node-type value))
+                  (if (js2-match-token js2-RC "msg.syntax")
+                      (rjsx-maybe-message "matched RC")
+                    (while (not (memql (js2-get-token) (list js2-RC js2-EOF))))
+                    ; TODO: these error positions can be wrong if there's whitespace around the curlies
+                    (js2-report-error "msg.no.rc.after.spread" nil (1- (js2-node-pos value))
+                                      (- (js2-current-token-end) (js2-node-pos value) -1)))))
           ;; TODO: JSX does not allow backslash escaped quotation marks inside strings
           (if (js2-must-match js2-STRING "msg.no.quotes.after.jsx.prop")
               (setq value (make-js2-string-node))
@@ -357,15 +364,12 @@ a `jsx-identifier' if a closing tag was parsed."
 
      ((= tt js2-LC)
       (rjsx-maybe-message "parsing expression { %s" (js2-peek-token))
-      (if (js2-match-token js2-RC)
+      (or (setq child (rjsx-check-for-empty-curlies))
           (progn
-            (js2-report-error "msg.empty.expr" nil
-                              (1- (js2-current-token-beg)) 2)
-            (setq child (make-js2-error-node :pos (1- (js2-current-token-beg)) :len 2)))
-        (setq child (js2-parse-assign-expr))
-        (if (js2-must-match js2-RC "msg.no.rc.after.expr")
-            (rjsx-maybe-message "matched } after expression")
-          (rjsx-maybe-message "did not match } after expression")))
+            (setq child (js2-parse-assign-expr))
+            (if (js2-must-match js2-RC "msg.no.rc.after.expr")
+                (rjsx-maybe-message "matched } after expression")
+              (rjsx-maybe-message "did not match } after expression"))))
       (rjsx-maybe-message "parsed expression, type: `%s'"
                           (js2-node-type child))
       child)
