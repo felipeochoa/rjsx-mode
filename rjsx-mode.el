@@ -220,7 +220,7 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
           ;; forward at least one character. If it hits EOF, it
           ;; signals to our caller, so we don't have to worry about infinite loops here
           (jsx-node-push-child pn child)
-          (if (js2-error-node-p child) ; TODO: use js2-recover-from-parse-errors
+          (if (= 0 (js2-node-len child)) ; TODO: use js2-recover-from-parse-errors
               (js2-get-token)))
         (unless (string= (jsx-identifier-full-name name-n)
                          (jsx-identifier-full-name child))
