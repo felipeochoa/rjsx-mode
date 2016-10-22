@@ -358,15 +358,16 @@ a `jsx-identifier' if a closing tag was parsed."
      ((= tt js2-LC)
       (rjsx-maybe-message "parsing expression { %s" (js2-peek-token))
       (if (js2-match-token js2-RC)
-          (js2-report-error "msg.empty.expr" nil
-                            (1- (js2-current-token-beg))
-                            (js2-current-token-end))
-        (setq child (js2-parse-assign-expr)))
+          (progn
+            (js2-report-error "msg.empty.expr" nil
+                              (1- (js2-current-token-beg)) 2)
+            (setq child (make-js2-error-node :pos (1- (js2-current-token-beg)) :len 2)))
+        (setq child (js2-parse-assign-expr))
+        (if (js2-must-match js2-RC "msg.no.rc.after.expr")
+            (rjsx-maybe-message "matched } after expression")
+          (rjsx-maybe-message "did not match } after expression")))
       (rjsx-maybe-message "parsed expression, type: `%s'"
                           (js2-node-type child))
-      (if (js2-must-match js2-RC "msg.no.rc.after.expr")
-          (rjsx-maybe-message "matched } after expression")
-        (rjsx-maybe-message "did not match } after expression"))
       child)
 
      ((= tt js2-JSX-TEXT)
