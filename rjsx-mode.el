@@ -171,7 +171,6 @@ Sets KID's parent to N."
     (apply #'message args)))
 
 (js2-deflocal rjsx-in-xml nil "Variable used to track which xml parsing function is the outermost one.")
-(js2-deflocal rjsx-tags nil "Stack of tag names processed")
 (defsubst rjsx-parent-tag () "The current xml tag being processed." (car rjsx-tags))
 
 (defun rjsx-parse-top-xml ()
@@ -183,21 +182,19 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
   ;; will throw `t' if it finds the EOF, which it ordinarily wouldn't
   (let (pn)
     (when (catch 'jsx-eof-while-parsing
-            (let ((rjsx-in-xml t)
-                  (rjsx-tags (list))) ;; We use dynamic scope to handle xml > expr > xml nestings
+            (let ((rjsx-in-xml t)) ;; We use dynamic scope to handle xml > expr > xml nestings
               (setq pn (rjsx-parse-xml)))
             nil)
       (rjsx-maybe-message "Caught a signal. Rethrowing?: `%s'" rjsx-in-xml)
       (if rjsx-in-xml
           (throw 'jsx-eof-while-parsing t)
         (setq pn (make-js2-error-node))))
-    (rjsx-maybe-message "Returning from top xml function")
+    (rjsx-maybe-message "Returning from top xml function: %s" pn)
     pn))
 
 (defun rjsx-parse-xml ()
   "Parse a complete xml node from start to end tag."
-  (let ((pn (make-jsx-node)) self-closing name-n curr-depth)
-    ;; First parse the name and push it onto rjsx-tags
+  (let ((pn (make-jsx-node)) self-closing name-n child)
     ;; If there are parse errors here
     (rjsx-maybe-message "cleared <")
     (setf (jsx-node-name pn) (setq name-n (rjsx-parse-identifier 'jsx-tag)))
@@ -218,19 +215,17 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
       (rjsx-maybe-message "cleared opener closer, self-closing: %s" self-closing)
       (if self-closing
           (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
-        (push (unless (= (js2-node-type name-n) js2-ERROR)
-                (jsx-identifier-full-name name-n))
-              rjsx-tags)
-        (setq curr-depth (length rjsx-tags))
-        (while (<= curr-depth (length rjsx-tags))
-          ;; TODO: Why is this <= and not =??
+        (while (not (jsx-identifier-p (setq child (rjsx-parse-child))))
           ;; rjsx-parse-child calls our scanner, which always moves
           ;; forward at least one character. If it hits EOF, it
           ;; signals to our caller, so we don't have to worry about infinite loops here
-          (rjsx-parse-child pn))
-        (if (js2-error-node-p name-n)
-            (rjsx-maybe-message "cleared children for ERROR")
-          (rjsx-maybe-message "cleared children for `%s'" (jsx-identifier-full-name name-n))))
+          (jsx-node-push-child pn child)
+          (if (js2-error-node-p child) ; TODO: use js2-recover-from-parse-errors
+              (js2-get-token)))
+        (unless (string= (jsx-identifier-full-name name-n)
+                         (jsx-identifier-full-name child))
+          (js2-report-error "msg.mismatched.close.tag" (jsx-identifier-full-name child)))
+        (rjsx-maybe-message "cleared children for `%s'" (jsx-identifier-full-name name-n)))
       pn)))
 
 (defun rjsx-parse-attributes (parent)
@@ -348,48 +343,59 @@ Returns a JS2-ERROR-NODE if unable to parse."
     (make-js2-error-node :len (js2-current-token-len))))
 
 
-(defun rjsx-parse-child (parent)
-  "Parse an XML child node and add it to PARENT.
+(defun rjsx-parse-child ()
+  "Parse an XML child node.
 Child nodes include plain (unquoted) text, other XML elements,
-and {}-bracketed expressions"
-  (let ((tt (rjsx-get-next-xml-token)))
-    (rjsx-maybe-message "child type `%s' for `%s'" tt (jsx-identifier-full-name (jsx-node-name parent)))
+and {}-bracketed expressions.  Returns the parsed child, which is
+a `jsx-identifier' if a closing tag was parsed."
+  (let ((tt (rjsx-get-next-xml-token)) child)
+    (rjsx-maybe-message "child type `%s'" tt)
     (cond
-      ((= tt js2-LT)       (rjsx-maybe-message "xml-or-close") (rjsx-parse-xml-or-closing-tag parent))
-      ((= tt js2-LC)       (rjsx-maybe-message "parsing expression { %s" (js2-peek-token))
-                           (if (js2-match-token js2-RC)
-                               (js2-report-error "msg.empty.expr" nil
-                                                 (1- (js2-current-token-beg))
-                                                 (js2-current-token-end))
-                             (jsx-node-push-child parent (js2-parse-assign-expr)))
-                           (rjsx-maybe-message "parsed expression, type: `%s'" (js2-node-type (car (last (jsx-node-kids parent)))))
-                           (js2-must-match js2-RC "msg.no.rc.after.expr")
-                           (rjsx-maybe-message "maybe matched } after expression"))
-      ((= tt js2-JSX-TEXT) (rjsx-maybe-message "text node: '%s'" (js2-current-token-string)) (jsx-node-push-child parent (make-jsx-text :value (js2-current-token-string))))
-      ((= tt js2-ERROR))
-      (t (error "Unexpected token type: %s" (js2-peek-token))))))
+     ((= tt js2-LT)
+      (rjsx-maybe-message "xml-or-close")
+      (rjsx-parse-xml-or-closing-tag))
 
-(defun rjsx-parse-xml-or-closing-tag (parent)
-  "Parse a JSX tag, closing an open tag if necessary, adding the child or closing tag to PARENT."
-  (let ((beg (js2-current-token-beg)) name)
+     ((= tt js2-LC)
+      (rjsx-maybe-message "parsing expression { %s" (js2-peek-token))
+      (if (js2-match-token js2-RC)
+          (js2-report-error "msg.empty.expr" nil
+                            (1- (js2-current-token-beg))
+                            (js2-current-token-end))
+        (setq child (js2-parse-assign-expr)))
+      (rjsx-maybe-message "parsed expression, type: `%s'"
+                          (js2-node-type child))
+      (if (js2-must-match js2-RC "msg.no.rc.after.expr")
+          (rjsx-maybe-message "matched } after expression")
+        (rjsx-maybe-message "did not match } after expression"))
+      child)
+
+     ((= tt js2-JSX-TEXT)
+      (rjsx-maybe-message "text node: '%s'" (js2-current-token-string))
+      (make-jsx-text :value (js2-current-token-string)))
+
+     ((= tt js2-ERROR)
+      (make-js2-error-node :len (js2-current-token-len)))
+
+     (t (error "Unexpected token type: %s" (js2-peek-token))))))
+
+(defun rjsx-parse-xml-or-closing-tag ()
+  "Parse a JSX tag, which could be a child or a closing tag.
+Returns the parsed child, which is a `jsx-identifier' if a
+closing tag was parsed."
+  (let ((beg (js2-current-token-beg)) child)
     (if (js2-match-token js2-DIV)
-        (progn (setq name (rjsx-parse-identifier 'jsx-tag))
+        (progn (setq child (rjsx-parse-identifier 'jsx-tag))
                (rjsx-maybe-message "parsed closing name: `%s'"
-                                  (if (js2-error-node-p name) "ERROR"
-                                    (jsx-identifier-full-name name)))
-               (if (or (null (rjsx-parent-tag)) (string= (rjsx-parent-tag)
-                                                            (if (js2-error-node-p name) ""
-                                                              (jsx-identifier-full-name name))))
-                   (pop rjsx-tags)
-                 (js2-report-error "msg.mismatched.close.tag" (pop rjsx-tags)))
+                                   (if (js2-error-node-p child) "ERROR"
+                                     (jsx-identifier-full-name child)))
                (if (js2-must-match js2-GT "msg.no.gt.in.closer" beg (- (js2-current-token-end) beg))
                    (rjsx-maybe-message "parsed closing tag")
                  (rjsx-maybe-message "missing closing `>'"))
-               (js2-node-add-children parent name)
                (setf (js2-node-len parent) (- (js2-current-token-end) (js2-node-pos parent)))
-               (rjsx-maybe-message "set closing tag"))
+               (rjsx-maybe-message "set closing tag")
+               child)
       (rjsx-maybe-message "parsing a child XML item")
-      (jsx-node-push-child parent (rjsx-parse-xml)))))
+      (rjsx-parse-xml))))
 
 (defun rjsx-get-next-xml-token ()
   "Scan through the XML text and push one token onto the stack."
