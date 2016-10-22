@@ -413,7 +413,7 @@ closing tag was parsed."
         (setq c (js2-get-char))
         (rjsx-maybe-message "'%s' (%s)" (if (= c js2-EOF_CHAR) "EOF" (char-to-string c)) c)
         (cond
-         ((or (= c ?}) (= c ?>) (= c js2-EOF_CHAR))
+         ((or (= c ?}) (= c ?>))
           (js2-set-string-from-buffer token)
           (setf (js2-token-type token) js2-ERROR)
           (js2-report-scan-error "msg.syntax" t)
@@ -434,7 +434,9 @@ closing tag was parsed."
             (setf (js2-token-string token) (string c))
             (throw 'return (js2-token-type token))))
 
-         ((= c js2-EOF_CHAR) (throw 'jsx-eof-while-parsing t))
+         ((= c js2-EOF_CHAR)
+          (rjsx-maybe-message "Scanner hit EOF. Panic!")
+          (throw 'jsx-eof-while-parsing t))
          (t (js2-add-to-string c)))))))
 
 (provide 'rjsx-mode)
