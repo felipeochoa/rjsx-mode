@@ -317,11 +317,19 @@ first one found, if any.  Assumes the current token is a '{'."
       (if (js2-match-token js2-ASSIGN)  ; Won't consume on error
           (if (js2-match-token js2-LC)
             (or (setq value (rjsx-check-for-empty-curlies))
-                (prog1 (setq value (js2-parse-assign-expr))
-                  (rjsx-maybe-message "parsed expression of type %s" (js2-node-type value))
-                  (if (js2-match-token js2-RC "msg.syntax")
+                (prog1
+                    (setq value (js2-parse-assign-expr))
+                  (rjsx-maybe-message "parsed expression of type `%s': `%s'"
+                                      (js2-node-type value)
+                                      (with-temp-buffer
+                                        (js2-print-ast value)
+                                        (buffer-string)))
+                  (if (js2-match-token js2-RC)
                       (rjsx-maybe-message "matched RC")
-                    (while (not (memql (js2-get-token) (list js2-RC js2-EOF))))
+                    (while (not (memql (js2-get-token) (list js2-RC js2-EOF js2-DIV js2-GT)))
+                      (rjsx-maybe-message "Skipped over `%s'" (js2-current-token-string)))
+                    (when (memq (js2-current-token-type) (list js2-DIV js2-GT))
+                      (js2-unget-token))
                     ; TODO: these error positions can be wrong if there's whitespace around the curlies
                     (js2-report-error "msg.no.rc.after.spread" nil (1- (js2-node-pos value))
                                       (- (js2-current-token-end) (js2-node-pos value) -1)))))
