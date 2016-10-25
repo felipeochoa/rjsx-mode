@@ -81,9 +81,10 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
                                    name
                                    jsx-props
                                    kids)))
-  name      ; AST node containing the parsed xml name
-  jsx-props ; linked list of AST nodes (both attributes and spreads)
-  kids)     ; linked list of child xml nodes
+  name         ; AST node containing the parsed xml name
+  jsx-props    ; linked list of AST nodes (both attributes and spreads)
+  kids         ; linked list of child xml nodes
+  closing-tag) ; AST node with the tag closer
 
 
 (put 'cl-struct-jsx-node 'js2-visitor 'jsx-node-visit)
@@ -92,8 +93,10 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
   (js2-visit-ast (jsx-node-name ast) callback)
   (dolist (prop (jsx-node-jsx-props ast))
     (js2-visit-ast prop callback))
-  (dolist (prop (jsx-node-jsx-kids ast))
-    (js2-visit-kids prop callback)))
+  (dolist (prop (jsx-node-kids ast))
+    (js2-visit-ast prop callback))
+  (when (jsx-node-closing-tag ast)
+    (js2-visit-ast (jsx-node-closing-tag ast))))
 
 (defun jsx-node-push-prop (n jsx-prop)
   "Push js2-node JSX-PROP onto the end of the jsx-node N's jsx-props.
@@ -264,7 +267,8 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
         (unless (string= name-str child-name-str)
           (js2-report-error "msg.mismatched.close.tag" name-str (js2-node-pos child) (js2-node-len child)))
         (rjsx-maybe-message "cleared children for `%s'" name-str)
-        (js2-node-add-children pn child))
+        (js2-node-add-children pn child)
+        (setf (jsx-node-closing-tag pn) child))
       pn)))
 
 (defun rjsx-parse-attributes (parent)
