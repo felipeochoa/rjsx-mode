@@ -39,11 +39,13 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
 
 ;;Token types for XML nodes. Never returned by scanner
 (defvar js2-JSX            (+ 1 js2-num-tokens))
-(defvar js2-JSX-IDENT      (+ 2 js2-num-tokens))
-(defvar js2-JSX-ATTR       (+ 3 js2-num-tokens))
-(defvar js2-JSX-SPREAD     (+ 4 js2-num-tokens))
-(defvar js2-JSX-TEXT       (+ 5 js2-num-tokens))
-(defvar js2-JSX-EXPRESSION (+ 6 js2-num-tokens))
+(defvar js2-JSX-CLOSE      (+ 2 js2-num-tokens))
+(defvar js2-JSX-IDENT      (+ 3 js2-num-tokens))
+(defvar js2-JSX-MEMBER     (+ 4 js2-num-tokens))
+(defvar js2-JSX-ATTR       (+ 5 js2-num-tokens))
+(defvar js2-JSX-SPREAD     (+ 6 js2-num-tokens))
+(defvar js2-JSX-TEXT       (+ 7 js2-num-tokens))
+(defvar js2-JSX-EXPRESSION (+ 8 js2-num-tokens))
 
 (js2-msg "msg.bad.jsx.ident" "invalid JSX identifier")
 (js2-msg "msg.invalid.jsx.string" "invalid JSX string (cannot contain delimiter in string body)")
@@ -112,6 +114,25 @@ Sets KID's parent to N."
   (js2-node-add-children n kid))
 
 
+(cl-defstruct (jsx-closing-tag
+               (:include js2-node (type js2-JSX-CLOSE))
+               (:constructor nil)
+               (:constructor make-jsx-closing-tag (&key pos len name)))
+  name) ; A jsx-identifier or jsx-member node
+
+(put 'cl-struct-jsx-closing-tag 'js2-visitor 'jsx-closing-tag-visit)
+
+(defun jsx-closing-tag-visit (ast callback)
+  "Visit the `jsx-closing-tag' children of AST, invoking CALLBACK on them."
+  (js2-visit-ast (jsx-closing-tag-name ast) callback))
+
+(defun jsx-closing-tag-full-name (n)
+  "Return the string with N's fully-namespaced name, or just name if it's not namespaced."
+  (let ((child (jsx-closing-tag-name n)))
+    (if (jsx-member-p child)
+        (jsx-member-full-name child)
+      (jsx-identifier-full-name child))))
+
 (cl-defstruct (jsx-identifier
                (:include js2-node (type js2-JSX-IDENT))
                (:constructor nil)
@@ -127,6 +148,19 @@ Sets KID's parent to N."
   (if (jsx-identifier-namespace n)
       (format "%s:%s" (jsx-identifier-namespace n) (jsx-identifier-name n))
     (jsx-identifier-name n)))
+
+(cl-defstruct (jsx-member
+               (:include js2-node (type js2-JSX-MEMBER))
+               (:constructor nil)
+               (:constructor make-jsx-member (&key (pos len dots-pos idents))))
+  dots-pos  ; List of positions of each dot
+  idents)   ; List of jsx-identifier nodes
+
+(put 'cl-struct-jsx-member 'js2-visitor 'js2-visit-none)
+
+(defun jsx-member-full-name (n)
+  "Return the string with N's combined names together."
+  (mapconcat 'jsx-identifier-full-name (jsx-member-idents n) "."))
 
 (cl-defstruct (jsx-attr
                (:include js2-node (type js2-JSX-ATTR))
@@ -195,14 +229,16 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
 
 (defun rjsx-parse-xml ()
   "Parse a complete xml node from start to end tag."
-  (let ((pn (make-jsx-node)) self-closing name-n child)
+  (let ((pn (make-jsx-node)) self-closing name-n name-str child child-name-str)
     ;; If there are parse errors here
     (rjsx-maybe-message "cleared <")
-    (setf (jsx-node-name pn) (setq name-n (rjsx-parse-identifier 'jsx-tag)))
+    (setf (jsx-node-name pn) (setq name-n (rjsx-parse-member-or-ns 'jsx-tag)))
     (if (js2-error-node-p name-n)
         (progn (rjsx-maybe-message "could not parse tag name")
                (make-js2-error-node :pos (js2-node-pos pn) :len (1+ (js2-node-len name-n))))
-      (rjsx-maybe-message "cleared tag name: '%s'" (jsx-identifier-full-name name-n))
+      (setq name-str (if (jsx-member-p name-n) (jsx-member-full-name name-n)
+                       (jsx-identifier-full-name name-n)))
+      (rjsx-maybe-message "cleared tag name: '%s'" name-str)
       ;; Now parse the attributes
       (rjsx-parse-attributes pn)
       (rjsx-maybe-message "cleared attributes")
@@ -216,17 +252,18 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
       (rjsx-maybe-message "cleared opener closer, self-closing: %s" self-closing)
       (if self-closing
           (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
-        (while (not (jsx-identifier-p (setq child (rjsx-parse-child))))
+        (while (not (jsx-closing-tag-p (setq child (rjsx-parse-child))))
           ;; rjsx-parse-child calls our scanner, which always moves
           ;; forward at least one character. If it hits EOF, it
           ;; signals to our caller, so we don't have to worry about infinite loops here
           (jsx-node-push-child pn child)
           (if (= 0 (js2-node-len child)) ; TODO: use js2-recover-from-parse-errors
               (js2-get-token)))
-        (unless (string= (jsx-identifier-full-name name-n)
-                         (jsx-identifier-full-name child))
-          (js2-report-error "msg.mismatched.close.tag" (jsx-identifier-full-name child)))
-        (rjsx-maybe-message "cleared children for `%s'" (jsx-identifier-full-name name-n)))
+        (setq child-name-str (jsx-closing-tag-full-name child))
+        (unless (string= name-str child-name-str)
+          (js2-report-error "msg.mismatched.close.tag" name-str (js2-node-pos child) (js2-node-len child)))
+        (rjsx-maybe-message "cleared children for `%s'" name-str)
+        (js2-node-add-children pn child))
       pn)))
 
 (defun rjsx-parse-attributes (parent)
@@ -344,7 +381,7 @@ the current token is a '{'."
                               beg (- (js2-current-token-end) beg))
             (setq value (make-js2-error-node :pos beg :len (js2-current-token-len)))))
         (js2-report-error "msg.no.equals.after.jsx.prop" (jsx-identifier-full-name name)
-                          beg (js2-current-token-len))
+                          beg (- (js2-current-token-end) beg))
         (setq value (make-js2-error-node :pos beg :len (js2-current-token-len))))
       (rjsx-maybe-message "value type: '%s'" (js2-node-type value))
       (setf (jsx-attr-value pn) value)
@@ -369,28 +406,70 @@ invalid if they contain the delimiting quote character inside)"
           (make-js2-error-node :pos beg :len len))
       (make-js2-string-node :pos beg :len len :value token-string))))
 
-(defun rjsx-parse-identifier (&optional face)
+(cl-defun rjsx-parse-identifier (&optional face &key (allow-ns t))
   "Parse a possibly namespaced identifier and fontify with FACE if given.
-Returns a JS2-ERROR-NODE if unable to parse."
+Returns a `js2-error-node' if unable to parse.  If the &key
+argument ALLOW-NS is nil, does not allow namespaced names."
   (if (js2-must-match-name "msg.bad.jsx.ident")
       (let ((pn (make-jsx-identifier))
             (beg (js2-current-token-beg))
-            (name-parts (list (js2-current-token-string))))
-        (when (js2-match-token js2-COLON)
-          (setf (jsx-identifier-namespace pn) (car name-parts))
-          (setq name-parts (list))
-          (when (js2-must-match-name "msg.bad.jsx.ident")
-            (push (js2-current-token-string) name-parts)))
-        (while (js2-match-token js2-DOT)
-          (push (js2-current-token-string) name-parts)
-          (when (js2-must-match-name "msg.bad.jsx.ident")
-            (push (js2-current-token-string) name-parts)))
+            (name-parts (list (js2-current-token-string)))
+            (allow-colon allow-ns)
+            (continue t)
+            matched-colon )
+        (while (and continue
+                    (or (= (js2-peek-token) js2-SUB)
+                        (and allow-colon (= (js2-peek-token) js2-COLON))))
+
+          (if (setq matched-colon (js2-match-token js2-COLON))
+              (setf (jsx-identifier-namespace pn) (apply #'concat (nreverse name-parts))
+                    allow-colon nil
+                    name-parts (list))
+            (js2-get-token) ;; Must be a js2-SUB
+            (push "-" name-parts))
+          (if (js2-match-token js2-NAME)
+              (push (js2-current-token-string) name-parts)
+            (when matched-colon
+              (js2-report-error "msg.bad.jsx.ident" nil beg (- (js2-current-token-end) beg)))
+            (setq continue nil)))
         (when face
           (js2-set-face beg (js2-current-token-end) face 'record))
         (setf (js2-node-len pn) (- (js2-current-token-end) beg)
               (jsx-identifier-name pn) (apply #'concat (nreverse name-parts)))
         pn)
     (make-js2-error-node :len (js2-current-token-len))))
+
+(defun rjsx-parse-member-or-ns (&optional face)
+  "Parse a dotted expression or a namespaced identifier and fontify with FACE if given."
+  (let ((ident (rjsx-parse-identifier face)))
+    (cond
+     ((js2-error-node-p ident) ident)
+     ((jsx-identifier-namespace ident) ident)
+     (t (rjsx-parse-member ident face)))))
+
+(defun rjsx-parse-member (ident &optional face)
+  "Parse a dotted member expression and fontify with FACE if given.
+IDENT is the `jsx-identifier' node for the first item in the
+member expression.  Returns a `js2-error-node' if unable to
+parse."
+  (let (idents dots-pos pn end)
+    (setq pn (make-jsx-member :pos (js2-node-pos ident)))
+    (setq end (js2-current-token-end))
+    (push ident idents)
+    (while (and (js2-match-token js2-DOT) (not (js2-error-node-p ident)))
+      (push (js2-current-token-beg) dots-pos)
+      (setq end (js2-current-token-end))
+      (setq ident (rjsx-parse-identifier nil :allow-ns nil))
+      (push ident idents)
+      (unless (js2-error-node-p ident)
+        (setq end (js2-current-token-end)))
+      (js2-node-add-children pn ident))
+    (setf (jsx-member-idents pn) (nreverse idents)
+          (jsx-member-dots-pos pn) (nreverse dots-pos)
+          (js2-node-len pn) (- end (js2-node-pos pn)))
+    (when face
+      (js2-set-face (js2-node-pos pn) end face 'record))
+    pn))
 
 
 (defun rjsx-parse-child ()
@@ -429,20 +508,16 @@ a `jsx-identifier' if a closing tag was parsed."
 
 (defun rjsx-parse-xml-or-closing-tag ()
   "Parse a JSX tag, which could be a child or a closing tag.
-Returns the parsed child, which is a `jsx-identifier' if a
+Returns the parsed child, which is a `jsx-closing-tag' if a
 closing tag was parsed."
-  (let ((beg (js2-current-token-beg)) child)
+  (let ((beg (js2-current-token-beg)) pn)
     (if (js2-match-token js2-DIV)
-        (progn (setq child (rjsx-parse-identifier 'jsx-tag))
-               (rjsx-maybe-message "parsed closing name: `%s'"
-                                   (if (js2-error-node-p child) "ERROR"
-                                     (jsx-identifier-full-name child)))
+        (progn (setq pn (make-jsx-closing-tag :pos beg :name (rjsx-parse-member-or-ns 'jsx-tag)))
                (if (js2-must-match js2-GT "msg.no.gt.in.closer" beg (- (js2-current-token-end) beg))
                    (rjsx-maybe-message "parsed closing tag")
                  (rjsx-maybe-message "missing closing `>'"))
-               (setf (js2-node-len parent) (- (js2-current-token-end) (js2-node-pos parent)))
-               (rjsx-maybe-message "set closing tag")
-               child)
+               (setf (js2-node-len pn) (- (js2-current-token-end) beg))
+               pn)
       (rjsx-maybe-message "parsing a child XML item")
       (rjsx-parse-xml))))
 
