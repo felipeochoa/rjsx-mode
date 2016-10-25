@@ -46,6 +46,7 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
 (defvar js2-JSX-EXPRESSION (+ 6 js2-num-tokens))
 
 (js2-msg "msg.bad.jsx.ident" "invalid JSX identifier")
+(js2-msg "msg.invalid.jsx.string" "invalid JSX string (cannot contain delimiter in string body)")
 (js2-msg "msg.mismatched.close.tag" "mismatched closing JSX tag; expected `%s'")
 (js2-msg "msg.no.gt.in.opener" "missing '>' in opening tag")
 (js2-msg "msg.no.gt.in.closer" "missing '>' in closing tag")
@@ -333,9 +334,8 @@ first one found, if any.  Assumes the current token is a '{'."
                     ; TODO: these error positions can be wrong if there's whitespace around the curlies
                     (js2-report-error "msg.no.rc.after.spread" nil (1- (js2-node-pos value))
                                       (- (js2-current-token-end) (js2-node-pos value) -1)))))
-          ;; TODO: JSX does not allow backslash escaped quotation marks inside strings
           (if (js2-match-token js2-STRING)
-              (setq value (make-js2-string-node))
+              (setq value (rjsx-parse-string))
             (js2-report-error "msg.no.value.after.jsx.prop" (jsx-identifier-full-name name)
                               beg (- (js2-current-token-end) beg))
             (setq value (make-js2-error-node :pos beg :len (js2-current-token-len)))))
@@ -348,6 +348,22 @@ first one found, if any.  Assumes the current token is a '{'."
       (js2-node-add-children pn value)
       (rjsx-maybe-message "Finished single attribute.")
       pn)))
+
+(defun rjsx-parse-string ()
+  "Verify that current token is a valid JSX string.
+Returns a `js2-error-node' if TOKEN-STRING is not a valid JSX
+string, otherwise returns a `js2-string-node'.  (Strings are
+invalid if they contain the delimiting quote character inside)"
+  (let* ((token (js2-current-token))
+         (beg (js2-token-beg token))
+         (len (- (js2-token-end token) beg))
+         (token-string (js2-token-string token)) ;; JS2 does not include the quote-chars
+         (quote-char (char-before (js2-token-end token))))
+    (if (cl-position quote-char token-string)
+        (progn
+          (js2-report-error "msg.invalid.jsx.string" nil beg len)
+          (make-js2-error-node :pos beg :len len))
+      (make-js2-string-node :pos beg :len len :value token-string))))
 
 (defun rjsx-parse-identifier (&optional face)
   "Parse a possibly namespaced identifier and fontify with FACE if given.
