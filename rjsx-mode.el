@@ -46,15 +46,15 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
 (defvar js2-JSX-EXPRESSION (+ 6 js2-num-tokens))
 
 (js2-msg "msg.bad.jsx.ident" "invalid JSX identifier")
-(js2-msg "msg.mismatched.close.tag" "mismatched closing JSX tag; expected '%s'")
-(js2-msg "msg.no.gt.in.opener" "missing > in opening tag")
-(js2-msg "msg.no.gt.in.closer" "missing > in closing tag")
-(js2-msg "msg.no.gt.after.slash" "missing > after / in self-closing tag")
-(js2-msg "msg.no.rc.after.spread" "missing } after spread-prop")
-(js2-msg "msg.no.equals.after.jsx.prop" "missing = after prop name")
-(js2-msg "msg.no.quotes.after.jsx.prop" "missing quoted value after prop name")
-(js2-msg "msg.no.rc.after.expr" "missing } after expression")
-(js2-msg "msg.empty.expr" "empty {} expression")
+(js2-msg "msg.mismatched.close.tag" "mismatched closing JSX tag; expected `%s'")
+(js2-msg "msg.no.gt.in.opener" "missing '>' in opening tag")
+(js2-msg "msg.no.gt.in.closer" "missing '>' in closing tag")
+(js2-msg "msg.no.gt.after.slash" "missing '>' after '/' in self-closing tag")
+(js2-msg "msg.no.rc.after.spread" "missing '}' after spread-prop")
+(js2-msg "msg.no.equals.after.jsx.prop" "missing '=' after prop `%s'")
+(js2-msg "msg.no.value.after.jsx.prop" "missing value after prop `%s'")
+(js2-msg "msg.no.rc.after.expr" "missing '}' after expression")
+(js2-msg "msg.empty.expr" "empty '{}' expression")
 
 
 (defface jsx-tag
@@ -306,17 +306,15 @@ first one found, if any.  Assumes the current token is a '{'."
 
 (defun rjsx-parse-single-attr ()
   "Parse an 'a=b' JSX attribute and return the corresponding XML node."
-  (let ((pn (make-jsx-attr)) name value)
+  (let ((pn (make-jsx-attr)) name value beg)
     (setq name (rjsx-parse-identifier 'jsx-attr)) ; Won't consume token on error
     (if (js2-error-node-p name)
         name
       (setf (jsx-attr-name pn) name)
+      (setq beg (js2-node-pos name))
       (js2-node-add-children pn name)
-      (rjsx-maybe-message "Got the name for the attr: %s"
-                          (if (= (js2-node-type name) js2-ERROR)
-                              "ERROR"
-                            (jsx-identifier-full-name name)))
-      (if (js2-must-match js2-ASSIGN "msg.no.equals.after.jsx.prop")  ; Won't consume on error
+      (rjsx-maybe-message "Got the name for the attr: %s" (jsx-identifier-full-name name))
+      (if (js2-match-token js2-ASSIGN)  ; Won't consume on error
           (if (js2-match-token js2-LC)
             (or (setq value (rjsx-check-for-empty-curlies))
                 (prog1 (setq value (js2-parse-assign-expr))
@@ -328,11 +326,14 @@ first one found, if any.  Assumes the current token is a '{'."
                     (js2-report-error "msg.no.rc.after.spread" nil (1- (js2-node-pos value))
                                       (- (js2-current-token-end) (js2-node-pos value) -1)))))
           ;; TODO: JSX does not allow backslash escaped quotation marks inside strings
-          (if (js2-must-match js2-STRING "msg.no.quotes.after.jsx.prop")
+          (if (js2-match-token js2-STRING)
               (setq value (make-js2-string-node))
-            (setq value (make-js2-error-node :pos (js2-current-token-end) :len (js2-current-token-len)))))
-        (rjsx-maybe-message "Did not find an equals after the attribute")
-        (setq value (make-js2-error-node :pos (js2-current-token-end) :len (js2-current-token-len))))
+            (js2-report-error "msg.no.value.after.jsx.prop" (jsx-identifier-full-name name)
+                              beg (- (js2-current-token-end) beg))
+            (setq value (make-js2-error-node :pos beg :len (js2-current-token-len)))))
+        (js2-report-error "msg.no.equals.after.jsx.prop" (jsx-identifier-full-name name)
+                          beg (js2-current-token-len))
+        (setq value (make-js2-error-node :pos beg :len (js2-current-token-len))))
       (rjsx-maybe-message "value type: '%s'" (js2-node-type value))
       (setf (jsx-attr-value pn) value)
       (setf (js2-node-len pn) (- (js2-node-end value) (js2-node-pos pn)))
