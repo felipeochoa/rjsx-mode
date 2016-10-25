@@ -200,10 +200,11 @@ Sets KID's parent to N."
 
 (defvar rjsx-print-debug-message nil "If t will print out debug messages.")
 ;(setq rjsx-print-debug-message t)
-(defun rjsx-maybe-message (&rest args)
+(defmacro rjsx-maybe-message (&rest args)
   "If debug is enabled, call `message' with ARGS."
-  (when rjsx-print-debug-message
-    (apply #'message args)))
+  `(when rjsx-print-debug-message
+     (message ,@args)))
+
 
 (js2-deflocal rjsx-in-xml nil "Variable used to track which xml parsing function is the outermost one.")
 (defsubst rjsx-parent-tag () "The current xml tag being processed." (car rjsx-tags))
@@ -361,11 +362,6 @@ the current token is a '{'."
             (or (setq value (rjsx-check-for-empty-curlies))
                 (prog1
                     (setq value (js2-parse-assign-expr))
-                  (rjsx-maybe-message "parsed expression of type `%s': `%s'"
-                                      (js2-node-type value)
-                                      (with-temp-buffer
-                                        (js2-print-ast value)
-                                        (buffer-string)))
                   (if (js2-match-token js2-RC)
                       (rjsx-maybe-message "matched RC")
                     (while (not (memql (js2-get-token) (list js2-RC js2-EOF js2-DIV js2-GT)))
