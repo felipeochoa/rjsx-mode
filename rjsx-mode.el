@@ -258,19 +258,33 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
       (jsx-node-push-prop parent attr))))
 
 
-(defun rjsx-check-for-empty-curlies (&optional dont-consume-rc)
+(cl-defun rjsx-check-for-empty-curlies (&optional dont-consume-rc &key check-for-comments)
   "If the following token is '}' set empty curly errors.
 If DONT-CONSUME-RC is true, the matched right curly token won't
 be consumed.  Returns a `js2-error-node' if the curlies are empty
-or nil otherwise."
-  (let ((beg (js2-current-token-beg)) len) ; Where the '{' is
+or nil otherwise.  If CHECK-FOR-COMMENTS (a &KEY argument) is t,
+this will check for comments inside the curlies and returns the
+first one found, if any.  Assumes the current token is a '{'."
+  (let ((beg (js2-current-token-beg)) end len found-comment)
     (when (js2-match-token js2-RC)
-      (setq len (- (js2-current-token-end) beg))
-      (when dont-consume-rc
-        (js2-unget-token))
-      (js2-report-error "msg.empty.expr" nil beg len)
-      (rjsx-maybe-message "Parsed empty {}")
-      (make-js2-error-node :pos beg :len len))))
+      (setq end (js2-current-token-end))
+      (setq len (- end beg))
+      (if check-for-comments (rjsx-maybe-message "Checking for comments between %d and %d" beg end))
+      (unless (and check-for-comments
+                   (loop for comment in js2-scanned-comments
+                         ;; TODO: IF comments are in reverse document order, we should be able to
+                         ;; bail out early
+                         do (rjsx-maybe-message "Comment at %d, length=%d"
+                                                (js2-node-pos comment)
+                                                (js2-node-len comment))
+                         if (and (>= (js2-node-pos comment) beg)
+                                 (<= (+ (js2-node-pos comment) (js2-node-len comment)) end))
+                         do (cl-return-from rjsx-check-for-empty-curlies comment)))
+        (when dont-consume-rc
+          (js2-unget-token))
+        (js2-report-error "msg.empty.expr" nil beg len)
+        (rjsx-maybe-message "Parsed empty {}")
+        (make-js2-error-node :pos beg :len len)))))
 
 
 (defun rjsx-parse-spread ()
@@ -363,8 +377,9 @@ a `jsx-identifier' if a closing tag was parsed."
       (rjsx-parse-xml-or-closing-tag))
 
      ((= tt js2-LC)
+      ;; TODO: Wrap this up in a JSX-EXPR node
       (rjsx-maybe-message "parsing expression { %s" (js2-peek-token))
-      (or (setq child (rjsx-check-for-empty-curlies))
+      (or (setq child (rjsx-check-for-empty-curlies nil :check-for-comments t))
           (progn
             (setq child (js2-parse-assign-expr))
             (if (js2-must-match js2-RC "msg.no.rc.after.expr")
