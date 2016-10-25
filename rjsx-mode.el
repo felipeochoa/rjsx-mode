@@ -259,13 +259,15 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
       (jsx-node-push-prop parent attr))))
 
 
-(cl-defun rjsx-check-for-empty-curlies (&optional dont-consume-rc &key check-for-comments)
+(cl-defun rjsx-check-for-empty-curlies (&optional dont-consume-rc &key check-for-comments warning)
   "If the following token is '}' set empty curly errors.
 If DONT-CONSUME-RC is true, the matched right curly token won't
 be consumed.  Returns a `js2-error-node' if the curlies are empty
 or nil otherwise.  If CHECK-FOR-COMMENTS (a &KEY argument) is t,
 this will check for comments inside the curlies and returns the
-first one found, if any.  Assumes the current token is a '{'."
+first one found, if any.  If WARNING (a &key argument) is t,
+reports the empty curlies as a warning and not an error.  Assumes
+the current token is a '{'."
   (let ((beg (js2-current-token-beg)) end len found-comment)
     (when (js2-match-token js2-RC)
       (setq end (js2-current-token-end))
@@ -283,7 +285,9 @@ first one found, if any.  Assumes the current token is a '{'."
                          do (cl-return-from rjsx-check-for-empty-curlies comment)))
         (when dont-consume-rc
           (js2-unget-token))
-        (js2-report-error "msg.empty.expr" nil beg len)
+        (if warning
+            (js2-report-warning "msg.empty.expr" nil beg len)
+          (js2-report-error "msg.empty.expr" nil beg len))
         (rjsx-maybe-message "Parsed empty {}")
         (make-js2-error-node :pos beg :len len)))))
 
@@ -404,7 +408,7 @@ a `jsx-identifier' if a closing tag was parsed."
      ((= tt js2-LC)
       ;; TODO: Wrap this up in a JSX-EXPR node
       (rjsx-maybe-message "parsing expression { %s" (js2-peek-token))
-      (or (setq child (rjsx-check-for-empty-curlies nil :check-for-comments t))
+      (or (setq child (rjsx-check-for-empty-curlies nil :check-for-comments t :warning t))
           (progn
             (setq child (js2-parse-assign-expr))
             (if (js2-must-match js2-RC "msg.no.rc.after.expr")
