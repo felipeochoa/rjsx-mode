@@ -24,17 +24,17 @@
 (define-minor-mode rjsx-mode
   "Enable highlighting and syntax checking of JSX snippets."
   :lighter ":RJSX"
-  :group 'rjsx-mode
-  ;; TODO: should we set js2-compiler-xml-available?
-  (advice-add 'js2-parse-xml-initializer :around #'rjsx-parse-xml-initializer))
+  :group 'rjsx-mode)
 
-(defun rjsx-parse-xml-initializer (js2-parser)
+(defun rjsx-parse-xml-initializer (orig-fun)
   "Dispatch the xml parser based on `rjsx-mode' being active or not.
 This function is used to advise `js2-parse-xml-initializer' using
 the `:around' combinator.  JS2-PARSER is the original XML parser."
   (if rjsx-mode
       (rjsx-parse-top-xml)
-    (apply js2-parser)))
+    (apply orig-fun nil)))
+
+(advice-add 'js2-parse-xml-initializer :around #'rjsx-parse-xml-initializer)
 
 
 ;;Token types for XML nodes. Never returned by scanner
@@ -60,12 +60,12 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
 (defface jsx-tag
   '((t . (:inherit font-lock-function-name-face)))
   "`rjsx-mode' face used to highlight JSX tag names."
-  :group rjsx-mode)
+  :group 'rjsx-mode)
 
 (defface jsx-attr
   '((t . (:inherit font-lock-variable-name-face)))
   "`rjsx-mode' face used to highlight JSX attribute names."
-  :group rjsx-mode)
+  :group 'rjsx-mode)
 
 
 ;; TODO: define js2-printers for all of the structs
