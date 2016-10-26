@@ -60,6 +60,7 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
 (js2-msg "msg.no.rc.after.spread" "missing '}' after spread-prop")
 (js2-msg "msg.no.equals.after.jsx.prop" "missing '=' after prop `%s'")
 (js2-msg "msg.no.value.after.jsx.prop" "missing value after prop `%s'")
+(js2-msg "msg.no.dots.in.prop.spread" "missing `...' in spread prop")
 (js2-msg "msg.no.rc.after.expr" "missing '}' after expression")
 (js2-msg "msg.empty.expr" "empty '{}' expression")
 
@@ -342,18 +343,20 @@ current token is a '{'."
 (defun rjsx-parse-spread ()
   "Parse an {...props} attribute."
   (let ((pn (make-rjsx-spread :pos (js2-current-token-beg)))
-        expr)
-    (js2-must-match js2-TRIPLEDOT "msg.syntax")  ; Does not consume on error
+        (beg (js2-current-token-beg))
+        missing-dots expr)
+    (setq missing-dots (not (js2-match-token js2-TRIPLEDOT)))
     (setq expr (js2-parse-assign-expr))  ; No tokens consumed when error
     (if (js2-error-node-p expr)
         expr
       (unless (js2-match-token js2-RC t)  ; Won't consume on error
         (js2-report-error "msg.no.rc.after.spread" nil
-                          (js2-node-pos pn)
-                          (- (js2-current-token-end) (js2-node-pos pn))))
+                          beg (- (js2-current-token-end) beg)))
       (setf (rjsx-spread-expr pn) expr)
       (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
       (js2-node-add-children pn expr)
+      (when missing-dots
+        (js2-report-error "msg.no.dots.in.prop.spread" nil beg (js2-node-len pn)))
       pn)))
 
 (defun rjsx-parse-single-attr ()
