@@ -309,10 +309,11 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
 If DONT-CONSUME-RC is true, the matched right curly token won't
 be consumed.  Returns a `js2-error-node' if the curlies are empty
 or nil otherwise.  If CHECK-FOR-COMMENTS (a &KEY argument) is t,
-this will check for comments inside the curlies and returns the
-first one found, if any.  If WARNING (a &key argument) is t,
-reports the empty curlies as a warning and not an error.  Assumes
-the current token is a '{'."
+this will check for comments inside the curlies and returns a
+`js2-empty-expr-node' if any are found.  If WARNING (a &key
+argument) is t, reports the empty curlies as a warning and not an
+error and also returns a `js2-empty-expr-node'.  Assumes the
+current token is a '{'."
   (let ((beg (js2-current-token-beg)) end len found-comment)
     (when (js2-match-token js2-RC)
       (setq end (js2-current-token-end))
@@ -329,12 +330,13 @@ the current token is a '{'."
                                                 (js2-node-len comment))
                          if (and (>= (js2-node-pos comment) beg)
                                  (<= (+ (js2-node-pos comment) (js2-node-len comment)) end))
-                         do (cl-return-from rjsx-check-for-empty-curlies comment)))
+                         do (cl-return-from rjsx-check-for-empty-curlies (make-js2-empty-expr-node
+                                                                          :pos beg :len (- end beg)))))
         (if warning
-            (js2-report-warning "msg.empty.expr" nil beg len)
-          (js2-report-error "msg.empty.expr" nil beg len))
-        (rjsx-maybe-message "Parsed empty {}")
-        (make-js2-error-node :pos beg :len len)))))
+            (progn (js2-report-warning "msg.empty.expr" nil beg len)
+                   (make-js2-empty-expr-node :pos beg :len (- end beg)))
+          (js2-report-error "msg.empty.expr" nil beg len)
+          (make-js2-error-node :pos beg :len len))))))
 
 
 (defun rjsx-parse-spread ()
