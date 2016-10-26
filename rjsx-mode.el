@@ -317,6 +317,8 @@ the current token is a '{'."
     (when (js2-match-token js2-RC)
       (setq end (js2-current-token-end))
       (setq len (- end beg))
+      (when dont-consume-rc
+        (js2-unget-token))
       (if check-for-comments (rjsx-maybe-message "Checking for comments between %d and %d" beg end))
       (unless (and check-for-comments
                    (loop for comment in js2-scanned-comments
@@ -328,8 +330,6 @@ the current token is a '{'."
                          if (and (>= (js2-node-pos comment) beg)
                                  (<= (+ (js2-node-pos comment) (js2-node-len comment)) end))
                          do (cl-return-from rjsx-check-for-empty-curlies comment)))
-        (when dont-consume-rc
-          (js2-unget-token))
         (if warning
             (js2-report-warning "msg.empty.expr" nil beg len)
           (js2-report-error "msg.empty.expr" nil beg len))
