@@ -386,14 +386,14 @@ This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
 
 (cl-defun rjsx-check-for-empty-curlies (&optional dont-consume-rc &key check-for-comments warning)
   "If the following token is '}' set empty curly errors.
-If DONT-CONSUME-RC is true, the matched right curly token won't
-be consumed.  Returns a `js2-error-node' if the curlies are empty
-or nil otherwise.  If CHECK-FOR-COMMENTS (a &KEY argument) is t,
-this will check for comments inside the curlies and returns a
-`js2-empty-expr-node' if any are found.  If WARNING (a &key
-argument) is t, reports the empty curlies as a warning and not an
-error and also returns a `js2-empty-expr-node'.  Assumes the
-current token is a '{'."
+If DONT-CONSUME-RC is non-nil, the matched right curly token
+won't be consumed.  Returns a `js2-error-node' if the curlies are
+empty or nil otherwise.  If CHECK-FOR-COMMENTS (a &KEY argument)
+is non-nil, this will check for comments inside the curlies and
+returns a `js2-empty-expr-node' if any are found.  If WARNING (a
+&key argument) is non-nil, reports the empty curlies as a warning
+and not an error and also returns a `js2-empty-expr-node'.
+Assumes the current token is a '{'."
   (let ((beg (js2-current-token-beg)) end len)
     (when (js2-match-token js2-RC)
       (setq end (js2-current-token-end))
@@ -470,10 +470,10 @@ current token is a '{'."
 
 (defun rjsx-parse-wrapped-expr (allow-empty skip-to-rc)
   "Parse a curly-brace-wrapped JS expression.
-If ALLOW-EMPTY is t, will warn for empty braces, otherwise will
-signal a syntax error.  If it does not find a right curly
-and SKIP-TO-RC is t, after the expression, consumes tokens until the end
-of the JSX node"
+If ALLOW-EMPTY is non-nil, will warn for empty braces, otherwise
+will signal a syntax error.  If it does not find a right curly
+and SKIP-TO-RC is non-nil, after the expression, consumes tokens
+until the end of the JSX node"
   (rjsx-maybe-message "parsing wrapped expression")
   (let (pn
         (beg (js2-current-token-beg))
@@ -588,8 +588,7 @@ parse."
 (defun rjsx-parse-child ()
   "Parse an XML child node.
 Child nodes include plain (unquoted) text, other XML elements,
-and {}-bracketed expressions.  Returns the parsed child, which is
-a `rjsx-identifier' if a closing tag was parsed."
+and {}-bracketed expressions.  Return the parsed child."
   (let ((tt (rjsx-get-next-xml-token)))
     (rjsx-maybe-message "child type `%s'" tt)
     (cond
@@ -612,7 +611,7 @@ a `rjsx-identifier' if a closing tag was parsed."
 
 (defun rjsx-parse-xml-or-closing-tag ()
   "Parse a JSX tag, which could be a child or a closing tag.
-Returns the parsed child, which is a `rjsx-closing-tag' if a
+Return the parsed child, which is a `rjsx-closing-tag' if a
 closing tag was parsed."
   (let ((beg (js2-current-token-beg)) pn)
     (if (js2-match-token js2-DIV)
