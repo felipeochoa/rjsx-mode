@@ -311,7 +311,9 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
       (rjsx-maybe-message "Caught a signal. Rethrowing?: `%s'" rjsx-in-xml)
       (if rjsx-in-xml
           (throw 'rjsx-eof-while-parsing t)
-        (setq pn (make-js2-error-node))))
+        ;; We subtract 1 since js2 sets the cursor the the point after point-max
+        (setq pn (make-js2-error-node :len (1- (js2-current-token-len))))
+        (js2-report-error "msg.syntax" nil (js2-node-pos pn) (js2-node-len pn))))
     (rjsx-maybe-message "Returning from top xml function: %s" pn)
     pn))
 
@@ -663,6 +665,9 @@ closing tag was parsed."
             (throw 'return (js2-token-type token))))
 
          ((= c js2-EOF_CHAR)
+          (js2-set-string-from-buffer token)
+          (rjsx-maybe-message "Hit EOF. Current buffer: `%s'" (js2-token-string token))
+          (setf (js2-token-type token) js2-ERROR)
           (rjsx-maybe-message "Scanner hit EOF. Panic!")
           (throw 'rjsx-eof-while-parsing t))
          (t (js2-add-to-string c)))))))
