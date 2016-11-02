@@ -250,6 +250,26 @@ Sets KID's parent to N."
   (js2-print-ast (rjsx-spread-expr node) 0)
   (insert "}"))
 
+(cl-defstruct (rjsx-wrapped-expr
+               (:include js2-node (type rjsx-JSX-TEXT))
+               (:constructor nil)
+               (:constructor make-rjsx-wrapped-expr (&key (pos (js2-current-token-beg))
+                                                          len child)))
+  child)
+
+(put 'cl-struct-rjsx-wrapped-expr 'js2-visitor 'rjsx-wrapped-expr-visit)
+(put 'cl-struct-rjsx-wrapped-expr 'js2-printer 'rjsx-wrapped-expr-print)
+
+(defun rjsx-wrapped-expr-visit (ast callback)
+  "Visit the `rjsx-wrapped-expr' child of AST, invoking CALLBACK on them."
+  (js2-visit-ast (rjsx-wrapped-expr-child ast) callback))
+
+(defun rjsx-wrapped-expr-print (node indent-level)
+  "Print the `rjsx-wrapped-expr' NODE at INDENT-LEVEL."
+  (insert (js2-make-pad indent-level) "{")
+  (js2-print-ast (rjsx-wrapped-expr-child node) indent-level)
+  (insert "}"))
+
 (cl-defstruct (rjsx-text
                (:include js2-node (type rjsx-JSX-TEXT))
                (:constructor nil)
@@ -428,34 +448,58 @@ current token is a '{'."
       (setf (rjsx-attr-name pn) name)
       (setq beg (js2-node-pos name))
       (js2-node-add-children pn name)
-      (rjsx-maybe-message "Got the name for the attr: %s" (rjsx-identifier-full-name name))
+      (rjsx-maybe-message "Got the name for the attr: `%s'" (rjsx-identifier-full-name name))
       (if (js2-match-token js2-ASSIGN)  ; Won't consume on error
-          (if (js2-match-token js2-LC)
-            (or (setq value (rjsx-check-for-empty-curlies))
-                (prog1
-                    (setq value (js2-parse-assign-expr))
-                  (if (js2-match-token js2-RC)
-                      (rjsx-maybe-message "matched RC")
-                    (while (not (memql (js2-get-token) (list js2-RC js2-EOF js2-DIV js2-GT)))
-                      (rjsx-maybe-message "Skipped over `%s'" (js2-current-token-string)))
-                    (when (memq (js2-current-token-type) (list js2-DIV js2-GT))
-                      (js2-unget-token))
-                    ; TODO: these error positions can be wrong if there's whitespace around the curlies
-                    (js2-report-error "msg.no.rc.after.spread" nil (1- (js2-node-pos value))
-                                      (- (js2-current-token-end) (js2-node-pos value) -1)))))
-          (if (js2-match-token js2-STRING)
-              (setq value (rjsx-parse-string))
-            (js2-report-error "msg.no.value.after.jsx.prop" (rjsx-identifier-full-name name)
-                              beg (- (js2-current-token-end) beg))
-            (setq value (make-js2-error-node :pos beg :len (js2-current-token-len)))))
+          (progn
+            (rjsx-maybe-message "Matched the equals sign")
+            (if (js2-match-token js2-LC)
+                (setq value (rjsx-parse-wrapped-expr nil t))
+              (if (js2-match-token js2-STRING)
+                  (setq value (rjsx-parse-string))
+                (js2-report-error "msg.no.value.after.jsx.prop" (rjsx-identifier-full-name name)
+                                  beg (- (js2-current-token-end) beg))
+                (setq value (make-js2-error-node :pos beg :len (js2-current-token-len))))))
         (js2-report-error "msg.no.equals.after.jsx.prop" (rjsx-identifier-full-name name)
                           beg (- (js2-current-token-end) beg))
-        (setq value (make-js2-error-node :pos beg :len (js2-current-token-len))))
-      (rjsx-maybe-message "value type: '%s'" (js2-node-type value))
+        (setq value (make-js2-error-node :pos beg :len (- (js2-current-token-end) beg))))
+      (rjsx-maybe-message "value type: `%s'" (js2-node-type value))
       (setf (rjsx-attr-value pn) value)
       (setf (js2-node-len pn) (- (js2-node-end value) (js2-node-pos pn)))
       (js2-node-add-children pn value)
       (rjsx-maybe-message "Finished single attribute.")
+      pn)))
+
+(defun rjsx-parse-wrapped-expr (allow-empty skip-to-rc)
+  "Parse a curly-brace-wrapped JS expression.
+If ALLOW-EMPTY is t, will warn for empty braces, otherwise will
+signal a syntax error.  If it does not find a right curly
+and SKIP-TO-RC is t, after the expression, consumes tokens until the end
+of the JSX node"
+  (rjsx-maybe-message "parsing wrapped expression")
+  (let (pn
+        (beg (js2-current-token-beg))
+        (child (rjsx-check-for-empty-curlies nil
+                                             :check-for-comments allow-empty
+                                             :warning allow-empty)))
+    (if child
+        (if allow-empty
+            (make-rjsx-wrapped-expr :pos beg :len (js2-node-len child) :child child)
+          child) ;; Will be an error node in this case
+      (setq child (js2-parse-assign-expr))
+      (rjsx-maybe-message "parsed expression, type: `%s'" (js2-node-type child))
+      (setq pn (make-rjsx-wrapped-expr :pos beg :child child))
+      (js2-node-add-children pn child)
+      (if (js2-match-token js2-RC)
+          (rjsx-maybe-message "matched } after expression")
+        (rjsx-maybe-message "did not match } after expression")
+        (when skip-to-rc
+          (while (not (memql (js2-get-token) (list js2-RC js2-EOF js2-DIV js2-GT)))
+            (rjsx-maybe-message "Skipped over `%s'" (js2-current-token-string)))
+          (when (memq (js2-current-token-type) (list js2-DIV js2-GT))
+            (js2-unget-token)))
+        (js2-report-error "msg.no.rc.after.expr" nil beg
+                          (- (js2-current-token-beg) beg)))
+      (setf (js2-node-len pn) (- (js2-current-token-end) beg))
       pn)))
 
 (defun rjsx-parse-string ()
@@ -546,7 +590,7 @@ parse."
 Child nodes include plain (unquoted) text, other XML elements,
 and {}-bracketed expressions.  Returns the parsed child, which is
 a `rjsx-identifier' if a closing tag was parsed."
-  (let ((tt (rjsx-get-next-xml-token)) child)
+  (let ((tt (rjsx-get-next-xml-token)))
     (rjsx-maybe-message "child type `%s'" tt)
     (cond
      ((= tt js2-LT)
@@ -554,17 +598,8 @@ a `rjsx-identifier' if a closing tag was parsed."
       (rjsx-parse-xml-or-closing-tag))
 
      ((= tt js2-LC)
-      ;; TODO: Wrap this up in a JSX-EXPR node
       (rjsx-maybe-message "parsing expression { %s" (js2-peek-token))
-      (or (setq child (rjsx-check-for-empty-curlies nil :check-for-comments t :warning t))
-          (progn
-            (setq child (js2-parse-assign-expr))
-            (if (js2-must-match js2-RC "msg.no.rc.after.expr")
-                (rjsx-maybe-message "matched } after expression")
-              (rjsx-maybe-message "did not match } after expression"))))
-      (rjsx-maybe-message "parsed expression, type: `%s'"
-                          (js2-node-type child))
-      child)
+      (rjsx-parse-wrapped-expr t nil))
 
      ((= tt rjsx-JSX-TEXT)
       (rjsx-maybe-message "text node: '%s'" (js2-current-token-string))
