@@ -287,7 +287,7 @@ Sets KID's parent to N."
   (insert (rjsx-text-value node)))
 
 (defvar rjsx-print-debug-message nil "If t will print out debug messages.")
-;(setq rjsx-print-debug-message t)
+;(setq rjsx-print-debug-message t) (add-hook 'js2-jsx-mode-hook 'rjsx-mode)
 (defmacro rjsx-maybe-message (&rest args)
   "If debug is enabled, call `message' with ARGS."
   `(when rjsx-print-debug-message
@@ -347,6 +347,7 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
           ;; rjsx-parse-child calls our scanner, which always moves
           ;; forward at least one character. If it hits EOF, it
           ;; signals to our caller, so we don't have to worry about infinite loops here
+          (rjsx-maybe-message "parsed child")
           (rjsx-node-push-child pn child)
           (if (= 0 (js2-node-len child)) ; TODO: use js2-recover-from-parse-errors
               (js2-get-token)))
@@ -356,6 +357,7 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
         (rjsx-maybe-message "cleared children for `%s'" name-str)
         (js2-node-add-children pn child)
         (setf (rjsx-node-closing-tag pn) child))
+      (rjsx-maybe-message "Returning completed XML node")
       pn)))
 
 (defun rjsx-parse-attributes (parent)
@@ -510,6 +512,7 @@ of the JSX node"
 Returns a `js2-error-node' if TOKEN-STRING is not a valid JSX
 string, otherwise returns a `js2-string-node'.  (Strings are
 invalid if they contain the delimiting quote character inside)"
+  (rjsx-maybe-message "Parsing string")
   (let* ((token (js2-current-token))
          (beg (js2-token-beg token))
          (len (- (js2-token-end token) beg))
