@@ -93,6 +93,7 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
 
 
 (put 'cl-struct-rjsx-node 'js2-visitor 'rjsx-node-visit)
+(put 'cl-struct-rjsx-node 'js2-printer 'rjsx-node-print)
 (defun rjsx-node-visit (ast callback)
   "Visit the `rjsx-node' children of AST, invoking CALLBACK on them."
   (js2-visit-ast (rjsx-node-name ast) callback)
@@ -102,6 +103,27 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
     (js2-visit-ast prop callback))
   (when (rjsx-node-closing-tag ast)
     (js2-visit-ast (rjsx-node-closing-tag ast))))
+
+(defun rjsx-node-print (node indent-level)
+  "Print the `rjsx-node' NODE at indent level INDENT-LEVEL."
+  (insert (js2-make-pad indent-level) "<")
+  (js2-print-ast (rjsx-node-name node) 0)
+  (dolist (attr (rjsx-node-rjsx-props node))
+    (insert " ")
+    (js2-print-ast attr 0))
+  (let ((closer (rjsx-node-closing-tag node)))
+    (if (null closer)
+        (insert "/>")
+      (insert ">")
+      (dolist (child (rjsx-node-kids node))
+          (js2-print-ast child 0))
+      (js2-print-ast closer indent-level))))
+
+(defun rjsx-node-opening-tag-name (node)
+  "Return a string with NODE's opening tag including any namespace and member operations."
+  (let ((name-n (rjsx-node-name node)))
+    (if (rjsx-member-p name-n) (rjsx-member-full-name name-n)
+      (rjsx-identifier-full-name name-n))))
 
 (defun rjsx-node-push-prop (n rjsx-prop)
   "Push js2-node JSX-PROP onto the end of the rjsx-node N's rjsx-props.
@@ -129,10 +151,15 @@ Sets KID's parent to N."
   name) ; A rjsx-identifier or rjsx-member node
 
 (put 'cl-struct-rjsx-closing-tag 'js2-visitor 'rjsx-closing-tag-visit)
+(put 'cl-struct-rjsx-closing-tag 'js2-printer 'rjsx-closing-tag-print)
 
 (defun rjsx-closing-tag-visit (ast callback)
   "Visit the `rjsx-closing-tag' children of AST, invoking CALLBACK on them."
   (js2-visit-ast (rjsx-closing-tag-name ast) callback))
+
+(defun rjsx-closing-tag-print (node indent-level)
+  "Print the `rjsx-closing-tag' NODE at INDENT-LEVEL."
+  (insert (js2-make-pad indent-level) "</" (rjsx-closing-tag-full-name node) ">"))
 
 (defun rjsx-closing-tag-full-name (n)
   "Return the string with N's fully-namespaced name, or just name if it's not namespaced."
@@ -150,6 +177,11 @@ Sets KID's parent to N."
   name)
 
 (put 'cl-struct-rjsx-identifier 'js2-visitor 'js2-visit-none)
+(put 'cl-struct-rjsx-identifier 'js2-printer 'rjsx-identifier-print)
+
+(defun rjsx-identifier-print (node indent-level)
+  "Print the `rjsx-identifier' NODE at INDENT-LEVEL."
+  (insert (js2-make-pad indent-level) (rjsx-identifier-full-name node)))
 
 (defun rjsx-identifier-full-name (n)
   "Return the string with N's fully-namespaced name, or just name if it's not namespaced."
@@ -165,6 +197,11 @@ Sets KID's parent to N."
   idents)   ; List of rjsx-identifier nodes
 
 (put 'cl-struct-rjsx-member 'js2-visitor 'js2-visit-none)
+(put 'cl-struct-rjsx-member 'js2-printer 'rjsx-member-print)
+
+(defun rjsx-member-print (node indent-level)
+  "Print the `rjsx-member' NODE at INDENT-LEVEL."
+  (insert (js2-make-pad indent-level) (rjsx-member-full-name node)))
 
 (defun rjsx-member-full-name (n)
   "Return the string with N's combined names together."
@@ -179,10 +216,18 @@ Sets KID's parent to N."
   value)  ; a js2-expression
 
 (put 'cl-struct-rjsx-attr 'js2-visitor 'rjsx-attr-visit)
+(put 'cl-struct-rjsx-attr 'js2-printer 'rjsx-attr-print)
+
 (defun rjsx-attr-visit (ast callback)
   "Visit the `rjsx-attr' children of AST, invoking CALLBACK on them."
   (js2-visit-ast (rjsx-attr-name ast) callback)
   (js2-visit-ast (rjsx-attr-value ast) callback))
+
+(defun rjsx-attr-print (node indent-level)
+  "Print the `rjsx-attr' NODE at INDENT-LEVEL."
+  (js2-print-ast (rjsx-attr-name node) indent-level)
+  (insert "=")
+  (js2-print-ast (rjsx-attr-value node) 0))
 
 (cl-defstruct (rjsx-spread
                (:include js2-node (type rjsx-JSX-SPREAD))
@@ -192,9 +237,17 @@ Sets KID's parent to N."
   expr)  ; a js2-expression
 
 (put 'cl-struct-rjsx-spread 'js2-visitor 'rjsx-spread-visit)
+(put 'cl-struct-rjsx-spread 'js2-printer 'rjsx-spread-print)
+
 (defun rjsx-spread-visit (ast callback)
   "Visit the `rjsx-spread' children of AST, invoking CALLBACK on them."
   (js2-visit-ast (rjsx-spread-expr ast) callback))
+
+(defun rjsx-spread-print (node indent-level)
+  "Print the `rjsx-spread' NODE at INDENT-LEVEL."
+  (insert (js2-make-pad indent-level) "{...")
+  (js2-print-ast (rjsx-spread-expr node) 0)
+  (insert "}"))
 
 (cl-defstruct (rjsx-text
                (:include js2-node (type rjsx-JSX-TEXT))
@@ -205,6 +258,12 @@ Sets KID's parent to N."
   value)  ; a string
 
 (put 'cl-struct-rjsx-text 'js2-visitor 'js2-visit-none)
+(put 'cl-struct-rjsx-text 'js2-printer 'rjsx-text-print)
+
+(defun rjsx-text-print (node indent-level)
+  "Print the `rjsx-text' NODE at INDENT-LEVEL."
+  ;; Text nodes include whitespace
+  (insert (rjsx-text-value node)))
 
 (defvar rjsx-print-debug-message nil "If t will print out debug messages.")
 ;(setq rjsx-print-debug-message t)
