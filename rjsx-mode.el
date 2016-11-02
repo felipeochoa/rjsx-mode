@@ -1,12 +1,12 @@
-;;; rjsx-mode.el --- Real support for JSX in Emacs    -*- lexical-binding: t -*-
+;;; rjsx-mode.el --- Real support for JSX    -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2016 Felipe Ochoa
 
 ;; Author: Felipe Ochoa <felipe@fov.space>
-;; Keywords: languages, javascript, jsx, react
+;; Keywords: languages
 ;; URL: https://github.com/felipeochoa/rjsx-mode/
-;; Version: 20161102
-;; Package-Requires: ((emacs "24.1") (js2-mode "20160623") (cl-lib "0.5"))
+;; Version: 1.0
+;; Package-Requires: ((emacs "24.4") (js2-mode "20160623") (cl-lib "0.5"))
 
 ;;; Commentary:
 ;; Defines a minor mode `rjsx-mode' that swaps out js2-mode's
@@ -28,8 +28,8 @@
   :group 'rjsx-mode)
 
 (defun rjsx-parse-xml-initializer (orig-fun)
-  "Dispatch the xml parser based on `rjsx-mode' being active or not.
-This function is used to advise `js2-parse-xml-initializer' using
+  "Dispatch the xml parser based on variable `rjsx-mode' being active or not.
+This function is used to advise `js2-parse-xml-initializer' (ORIG-FUN) using
 the `:around' combinator.  JS2-PARSER is the original XML parser."
   (if rjsx-mode
       (rjsx-parse-top-xml)
@@ -127,7 +127,7 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
       (rjsx-identifier-full-name name-n))))
 
 (defun rjsx-node-push-prop (n rjsx-prop)
-  "Push js2-node RJSX-PROP onto the end of the rjsx-node N's rjsx-props.
+  "Extend rjsx-node N's rjsx-props with js2-node RJSX-PROP.
 Sets JSX-PROPS's parent to N."
   (let ((rjsx-props (rjsx-node-rjsx-props n)))
     (if rjsx-props
@@ -136,7 +136,7 @@ Sets JSX-PROPS's parent to N."
   (js2-node-add-children n rjsx-prop))
 
 (defun rjsx-node-push-child (n kid)
-  "Push js2-node KID onto the end of the rjsx-node N's children.
+  "Extend rjsx-node N's children with js2-node KID.
 Sets KID's parent to N."
   (let ((kids (rjsx-node-kids n)))
     (if kids
@@ -298,7 +298,7 @@ Sets KID's parent to N."
 
 (defun rjsx-parse-top-xml ()
   "Parse a top level XML fragment.
-This is the entry point when js2-parse-unary-expr finds a '<' character"
+This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
   (rjsx-maybe-message "Parsing a new xml fragment%s" (if rjsx-in-xml ", recursively" ""))
   ;; If there are imbalanced tags, we just need to bail out to the
   ;; topmost JSX parser and let js2 handle the EOF. Our custom scanner
@@ -561,7 +561,7 @@ argument ALLOW-NS is nil, does not allow namespaced names."
      (t (rjsx-parse-member ident face)))))
 
 (defun rjsx-parse-member (ident &optional face)
-  "Parse a dotted member expression and fontify with FACE if given.
+  "Parse a dotted member expression starting with IDENT and fontify with FACE.
 IDENT is the `rjsx-identifier' node for the first item in the
 member expression.  Returns a `js2-error-node' if unable to
 parse."
