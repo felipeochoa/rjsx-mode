@@ -334,10 +334,11 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
       (rjsx-maybe-message "cleared attributes")
       (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
       ;; Now parse either a self closing tag or the end of the opening tag
-      (rjsx-maybe-message "next type: %s" (js2-peek-token))
+      (rjsx-maybe-message "next type: `%s'" (js2-peek-token))
       (if (setq self-closing (js2-match-token js2-DIV))
           ;; TODO: make sure there's no whitespace between / and >
-          (js2-must-match js2-GT "msg.no.gt.after.slash" (js2-node-pos pn) (js2-node-len pn))
+          (js2-must-match js2-GT "msg.no.gt.after.slash"
+                          (js2-node-pos pn) (- (js2-current-token-end) (js2-node-pos pn)))
         (js2-must-match js2-GT "msg.no.gt.in.opener" (js2-node-pos pn) (js2-node-len pn)))
       (rjsx-maybe-message "cleared opener closer, self-closing: %s" self-closing)
       (if self-closing
