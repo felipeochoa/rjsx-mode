@@ -3,10 +3,10 @@
 ;; Copyright (C) 2016 Felipe Ochoa
 
 ;; Author: Felipe Ochoa <felipe@fov.space>
-;; Keywords: languages
 ;; URL: https://github.com/felipeochoa/rjsx-mode/
-;; Version: 1.0
 ;; Package-Requires: ((emacs "24.4") (js2-mode "20160623") (cl-lib "0.5"))
+;; Version: 1.0
+;; Keywords: languages
 
 ;;; Commentary:
 ;; Defines a minor mode `rjsx-mode' that swaps out js2-mode's
