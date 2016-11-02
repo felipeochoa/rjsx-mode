@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 ;;; rjsx-mode.el --- Real support for JSX in Emacs
 
 ;; Copyright (C) 2016 Felipe Ochoa
