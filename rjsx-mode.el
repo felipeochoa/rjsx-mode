@@ -497,9 +497,10 @@ argument ALLOW-NS is nil, does not allow namespaced names."
             (push "-" name-parts))
           (if (js2-match-token js2-NAME)
               (push (js2-current-token-string) name-parts)
-            (when matched-colon
+            (when (= js2-COLON (js2-current-token-type))
               (js2-report-error "msg.bad.jsx.ident" nil beg (- (js2-current-token-end) beg)))
-            (setq continue nil)))
+            ;; We only keep going if this is an `ident-ending-with-dash-colon:'
+            (setq continue (and (not matched-colon) (= (js2-peek-token) js2-COLON)))))
         (when face
           (js2-set-face beg (js2-current-token-end) face 'record))
         (setf (js2-node-len pn) (- (js2-current-token-end) beg)
