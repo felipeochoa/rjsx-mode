@@ -38,7 +38,7 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
 (advice-add 'js2-parse-xml-initializer :around #'rjsx-parse-xml-initializer)
 
 (defun rjsx-unadvice-js2 ()
-  "Remove the rjsx advice on the js2 parser. This will cause rjsx to stop working globally."
+  "Remove the rjsx advice on the js2 parser.  This will cause rjsx to stop working globally."
   (advice-remove 'js2-parse-xml-initializer #'rjsx-parse-xml-initializer))
 
 
@@ -127,7 +127,7 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
       (rjsx-identifier-full-name name-n))))
 
 (defun rjsx-node-push-prop (n rjsx-prop)
-  "Push js2-node JSX-PROP onto the end of the rjsx-node N's rjsx-props.
+  "Push js2-node RJSX-PROP onto the end of the rjsx-node N's rjsx-props.
 Sets JSX-PROPS's parent to N."
   (let ((rjsx-props (rjsx-node-rjsx-props n)))
     (if rjsx-props
@@ -368,15 +368,9 @@ This is the entry point when js2-parse-unary-expr finds a '<' character"
   ;; which signals to us that we just need to discard one token and
   ;; keep going.
   (let (attr
-        (max-iter 100)
-        ; MAX-ITER is an awful hack, and I think superfluous at this
-        ; point, but C-g hasn't been working for me and it's a huge
-        ; headache when trying to use this mode. Once we have tests
-        ; this can go easily
         (loop-terminators (list js2-DIV js2-GT js2-EOF js2-ERROR)))
     (while (not (memql (js2-peek-token) loop-terminators))
       (rjsx-maybe-message "Starting loop. Next token type: %s\nToken pos: %s" (js2-peek-token) (js2-current-token-beg))
-      (when (= 0 (cl-decf max-iter)) (error "Too many iterations"))
       (setq attr
        (if (js2-match-token js2-LC)
            (or (rjsx-check-for-empty-curlies t)
