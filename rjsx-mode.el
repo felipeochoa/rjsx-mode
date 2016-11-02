@@ -3,9 +3,10 @@
 ;; Copyright (C) 2016 Felipe Ochoa
 
 ;; Author: Felipe Ochoa <felipe@fov.space>
+;; Keywords: languages, javascript, jsx, react
 ;; URL: https://github.com/felipeochoa/rjsx-mode/
-;; Version: 20161019
-;; Package-Requires: ((js2-mode "20160623") (cl-lib "0.5"))
+;; Version: 20161102
+;; Package-Requires: ((emacs "24.1") (js2-mode "20160623") (cl-lib "0.5"))
 
 ;;; Commentary:
 ;; Defines a minor mode `rjsx-mode' that swaps out js2-mode's
