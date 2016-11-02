@@ -1,5 +1,4 @@
-;;; -*- lexical-binding: t -*-
-;;; tjsx-tests.el --- Tests for rjsx-mode.
+;;; tjsx-tests.el --- Tests for rjsx-mode.    -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2016 Felipe Ochoa
 
