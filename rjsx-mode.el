@@ -103,7 +103,7 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
   (dolist (prop (rjsx-node-kids ast))
     (js2-visit-ast prop callback))
   (when (rjsx-node-closing-tag ast)
-    (js2-visit-ast (rjsx-node-closing-tag ast))))
+    (js2-visit-ast (rjsx-node-closing-tag ast) callback)))
 
 (defun rjsx-node-print (node indent-level)
   "Print the `rjsx-node' NODE at indent level INDENT-LEVEL."
@@ -193,7 +193,7 @@ Sets KID's parent to N."
 (cl-defstruct (rjsx-member
                (:include js2-node (type rjsx-JSX-MEMBER))
                (:constructor nil)
-               (:constructor make-rjsx-member (&key (pos len dots-pos idents))))
+               (:constructor make-rjsx-member (&key pos len dots-pos idents)))
   dots-pos  ; List of positions of each dot
   idents)   ; List of rjsx-identifier nodes
 
@@ -281,7 +281,7 @@ Sets KID's parent to N."
 (put 'cl-struct-rjsx-text 'js2-visitor 'js2-visit-none)
 (put 'cl-struct-rjsx-text 'js2-printer 'rjsx-text-print)
 
-(defun rjsx-text-print (node indent-level)
+(defun rjsx-text-print (node _indent-level)
   "Print the `rjsx-text' NODE at INDENT-LEVEL."
   ;; Text nodes include whitespace
   (insert (rjsx-text-value node)))
@@ -394,7 +394,7 @@ this will check for comments inside the curlies and returns a
 argument) is t, reports the empty curlies as a warning and not an
 error and also returns a `js2-empty-expr-node'.  Assumes the
 current token is a '{'."
-  (let ((beg (js2-current-token-beg)) end len found-comment)
+  (let ((beg (js2-current-token-beg)) end len)
     (when (js2-match-token js2-RC)
       (setq end (js2-current-token-end))
       (setq len (- end beg))
@@ -632,8 +632,7 @@ closing tag was parsed."
     (setq js2-ts-cursor (js2-current-token-end))
     (setq js2-ti-lookahead 0))
 
-  (let ((beg js2-ts-cursor)
-        (token (js2-new-token 0))
+  (let ((token (js2-new-token 0))
         c)
     (rjsx-maybe-message "Running the xml scanner")
     (catch 'return
@@ -648,7 +647,6 @@ closing tag was parsed."
           (throw 'return js2-ERROR))
 
          ((or (= c ?<) (= c ?{))
-          (setq continue nil)
           (js2-unget-char)
           (if js2-ts-string-buffer
               (progn
