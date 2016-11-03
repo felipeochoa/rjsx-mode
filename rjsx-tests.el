@@ -14,7 +14,6 @@
 (require 'ert)
 
 (defun js2-mode--and-parse ()  ;; No point in advising, so we just overwrite this internal function
-  (js2-jsx-mode)
   (rjsx-mode)
   (js2-reparse))
 

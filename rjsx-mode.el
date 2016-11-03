@@ -22,16 +22,18 @@
   :group 'js2-mode)
 
 ;;;###autoload
-(define-minor-mode rjsx-mode
-  "Enable highlighting and syntax checking of JSX snippets."
+(define-derived-mode rjsx-mode js2-jsx-mode "RJSX"
+  "Major mode for editing JSX files."
   :lighter ":RJSX"
   :group 'rjsx-mode)
+
+;;;###autoload (add-to-list 'auto-mode-alist '("\\.jsx\\'" . rjsx-mode))
 
 (defun rjsx-parse-xml-initializer (orig-fun)
   "Dispatch the xml parser based on variable `rjsx-mode' being active or not.
 This function is used to advise `js2-parse-xml-initializer' (ORIG-FUN) using
 the `:around' combinator.  JS2-PARSER is the original XML parser."
-  (if rjsx-mode
+  (if (eq major-mode 'rjsx-mode)
       (rjsx-parse-top-xml)
     (apply orig-fun nil)))
 
