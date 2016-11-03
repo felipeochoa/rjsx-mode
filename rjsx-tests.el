@@ -166,9 +166,52 @@
   :errors-count 2 ; missing attr value; erratic number
   :syntax-error "a=")
 
+(js2-deftest-parse attr-missing-rc-at-end
+  "<div a={123/>"
+  :errors-count 2
+  :syntax-error "{123/")
+
+(js2-deftest-parse attr-missing-rc
+  "<div a={123 b=\"1\"/>"
+  :errors-count 1
+  :syntax-error "{123 b=\"1\"")
+
+(js2-deftest-parse invalid-spread-value
+  "<div {...&&}/>"
+  :errors-count 1
+  :syntax-error "&")
+
+(js2-deftest-parse spread-value-missing-dots
+  "<div {props}/>"
+  :errors-count 1
+  :syntax-error "{props}")
+
+(js2-deftest-parse spread-value-missing-rc
+  "<div {...props a=\"1\"/>"
+  :errors-count 1
+  :syntax-error "{...props")
+
+(js2-deftest-parse spread-value-missing-at-end
+  "<div {...props/>"
+  :errors-count 2
+  :syntax-error "{...props/")
+
 (js2-deftest-parse missing-closing-lt-self-closing
   "<div/"
   :syntax-error "<div/")
+
+(js2-deftest-parse invalid-tag-name
+  "<123 />"
+  :errors-count 3
+  :syntax-error "123")
+
+(js2-deftest-parse invalid-tag-name-only-ns
+  "<abc: />"
+  :syntax-error "abc:")
+
+(js2-deftest-parse invalid-attr-name-only-ns
+  "<xyz abc:={1} />"
+  :syntax-error "abc:")
 
 (js2-deftest-parse falls-off-a-cliff-but-doesnt-hang
   "const Component = ({prop}) => <span>;\n\nexport default Component;"
@@ -182,5 +225,33 @@
   "const Component = ({prop}) => <span>;\nconst C2 = () => <span></span>\n\n"
   :errors-count 2  ; 1 from the stray > in the arrow function and 1 from the missing closer
   :syntax-error ";\nconst C2 = () =>")
+
+(js2-deftest-parse falls-off-a-cliff-in-recursive-parse
+  "const Component = ({prop}) => <div>{pred && <span>};\n\nexport { Component }"
+  :errors-count 2
+  :syntax-error "}")
+
+;; Other odds and ends
+
+
+(ert-deftest rjsx-node-opening-tag ()
+  (ert-with-test-buffer (:name 'origin)
+    (dolist (test '(("<div/>" "div" "div")
+                    ("<div></div>" "div" "div")
+                    ("<div></vid>" "div" "div")
+                    ("<C-d-e:f-g-h-></C-d-e:f-g-h->" "C-d-e:f-g-h" "C-d-e:f-g-h")
+                    ("<C.D.E></C.D.E>" "C.D.E" "C.D.E")
+                    ("<C-a.D-a.E-a/>" "C-a.D-a.E-a" nil)))
+      (erase-buffer)
+      (js2-visit-ast
+       (js2-test-string-to-ast (car test))
+       (lambda (node end-p)
+         (when (not end-p)
+           (cond
+            ((rjsx-node-p node)
+             (should (string= (cadr test) (rjsx-node-opening-tag-name node))))
+            ((rjsx-closing-tag-p node)
+             (should (string= (caddr test) (rjsx-closing-tag-full-name node))))))
+         nil)))))
 
 ;;; rjsx-tests.el ends here
