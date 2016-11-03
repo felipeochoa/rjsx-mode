@@ -148,7 +148,7 @@ Currently only forms with syntax errors are supported.
                                 (jsx-test--forms ',pass-forms))))
                    (mapcar
                     (lambda (form)
-                      `(ert-deftest ,(intern (format "rjsx-%s-expected-fail-%d" name (incf i))) ()
+                      `(ert-deftest ,(intern (format "rjsx-%s-expected-fail-%d" name (cl-incf i))) ()
                          :expected-result :failed
                          (jsx-test--forms '(,form))))
                     fail-forms))))
