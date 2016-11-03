@@ -5,6 +5,9 @@ BATCHFLAGS = -batch -Q
 SRCS = rjsx-mode.el
 OBJS = rjsx-mode.elc
 
+JS2_LINK = https://raw.githubusercontent.com/mooz/js2-mode/master/js2-mode.el
+
+
 %.elc: %.el
 	${EMACS} $(BATCHFLAGS) -L . -f batch-byte-compile $^
 
@@ -18,4 +21,4 @@ test:
 	  -f ert-run-tests-batch-and-exit
 
 install-deps:
-	${EMACS} $(BATCHFLAGS) -l test-install-deps.el
+	curl --silent '$(JS2_LINK)' > js2-mode.el
