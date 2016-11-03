@@ -18,7 +18,7 @@
 (require 'js2-mode)
 
 (defgroup rjsx-mode nil
-  "Real support for JSX in Emacs"
+  "Support for JSX."
   :group 'js2-mode)
 
 ;;;###autoload
