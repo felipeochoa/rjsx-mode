@@ -161,7 +161,7 @@ Currently only forms with syntax errors are supported.
           "%s\\(\\s-\\|$\\)")
   "The regexp the `find-function' mechanisms use for finding RJSX test definitions.")
 
-(setf (alist-get 'rjsx-deftest find-function-regexp-alist) 'rjsx--find-test-regexp)
+(push '(rjsx-deftest . rjsx--find-test-regexp) find-function-regexp-alist)
 
 (defun rjsx-find-test-advice (orig-fn test-name)
   "Advice for `ert-find-test-other-window' (ORIG-FN) to find TEST-NAME."
