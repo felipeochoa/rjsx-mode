@@ -6,6 +6,7 @@ SRCS = rjsx-mode.el
 OBJS = rjsx-mode.elc
 
 JS2_LINK = https://raw.githubusercontent.com/mooz/js2-mode/master/js2-mode.el
+JS2_OLD_INDENT_LINK = https://raw.githubusercontent.com/mooz/js2-mode/master/js2-old-indent.el
 
 
 %.elc: %.el
@@ -22,3 +23,4 @@ test:
 
 install-deps:
 	curl --silent '$(JS2_LINK)' > js2-mode.el
+	curl --silent '$(JS2_OLD_INDENT_LINK)' > js2-old-indent.el
