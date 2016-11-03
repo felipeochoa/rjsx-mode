@@ -121,7 +121,7 @@ forms, where the values are as in `js2-parse-string'."
   "Define a new test for compactly checking multiple strings' parsing.
 The test is named rjsx-NAME.  FORMS is a list of (CODE-STRING
 SYNTAX-ERROR ERRORS-COUNT) forms, where the values are as in
-`js2-parse-string'.  `&expect-fail' can be inserted anywhere between
+`js2-parse-string'.  `:expect-fail' can be inserted anywhere between
 between the forms to split the test into two: forms before the marker
 are expected to pass and forms after the marker are expected to fail.
 Currently only forms with syntax errors are supported.
