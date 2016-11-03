@@ -1,4 +1,5 @@
 # rjsx-mode
+[![Build Status](https://travis-ci.org/felipeochoa/rjsx-mode.svg?branch=master)](https://travis-ci.org/felipeochoa/rjsx-mode)
 A real JSX minor mode for use with js2-mode
 
 This mode implements a JSX parser according to the
