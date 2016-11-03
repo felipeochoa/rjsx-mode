@@ -233,8 +233,7 @@ Sets KID's parent to N."
 (cl-defstruct (rjsx-spread
                (:include js2-node (type rjsx-JSX-SPREAD))
                (:constructor nil)
-               (:constructor make-rjsx-spread (&key (pos (js2-current-token-beg))
-                                                       len expr)))
+               (:constructor make-rjsx-spread (&key pos len expr)))
   expr)  ; a js2-expression
 
 (put 'cl-struct-rjsx-spread 'js2-visitor 'rjsx-spread-visit)
@@ -253,8 +252,7 @@ Sets KID's parent to N."
 (cl-defstruct (rjsx-wrapped-expr
                (:include js2-node (type rjsx-JSX-TEXT))
                (:constructor nil)
-               (:constructor make-rjsx-wrapped-expr (&key (pos (js2-current-token-beg))
-                                                          len child)))
+               (:constructor make-rjsx-wrapped-expr (&key pos len child)))
   child)
 
 (put 'cl-struct-rjsx-wrapped-expr 'js2-visitor 'rjsx-wrapped-expr-visit)
@@ -349,7 +347,7 @@ This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
           ;; signals to our caller, so we don't have to worry about infinite loops here
           (rjsx-maybe-message "parsed child")
           (rjsx-node-push-child pn child)
-          (if (= 0 (js2-node-len child)) ; TODO: use js2-recover-from-parse-errors
+          (if (= 0 (js2-node-len child)) ; TODO: Does this ever happen?
               (js2-get-token)))
         (setq child-name-str (rjsx-closing-tag-full-name child))
         (unless (string= name-str child-name-str)
