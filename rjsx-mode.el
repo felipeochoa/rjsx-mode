@@ -402,16 +402,16 @@ Assumes the current token is a '{'."
         (js2-unget-token))
       (if check-for-comments (rjsx-maybe-message "Checking for comments between %d and %d" beg end))
       (unless (and check-for-comments
-                   (loop for comment in js2-scanned-comments
-                         ;; TODO: IF comments are in reverse document order, we should be able to
-                         ;; bail out early
-                         do (rjsx-maybe-message "Comment at %d, length=%d"
-                                                (js2-node-pos comment)
-                                                (js2-node-len comment))
-                         if (and (>= (js2-node-pos comment) beg)
-                                 (<= (+ (js2-node-pos comment) (js2-node-len comment)) end))
-                         do (cl-return-from rjsx-check-for-empty-curlies (make-js2-empty-expr-node
-                                                                          :pos beg :len (- end beg)))))
+                   (dolist (comment js2-scanned-comments)
+                     (rjsx-maybe-message "Comment at %d, length=%d"
+                                         (js2-node-pos comment)
+                                         (js2-node-len comment))
+                     ;; TODO: IF comments are in reverse document order, we should be able to
+                     ;; bail out early and know we didn't find one
+                     (when (and (>= (js2-node-pos comment) beg)
+                                (<= (+ (js2-node-pos comment) (js2-node-len comment)) end))
+                       (cl-return-from rjsx-check-for-empty-curlies
+                         (make-js2-empty-expr-node :pos beg :len (- end beg))))))
         (if warning
             (progn (js2-report-warning "msg.empty.expr" nil beg len)
                    (make-js2-empty-expr-node :pos beg :len (- end beg)))
