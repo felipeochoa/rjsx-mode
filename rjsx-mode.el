@@ -486,6 +486,8 @@ until the end of the JSX node"
       (rjsx-maybe-message "parsed expression, type: `%s'" (js2-node-type child))
       (setq pn (make-rjsx-wrapped-expr :pos beg :child child))
       (js2-node-add-children pn child)
+      (when (js2-error-node-p child)
+        (pop js2-parsed-errors)) ; We'll record our own message after checking for RC
       (if (js2-match-token js2-RC)
           (rjsx-maybe-message "matched } after expression")
         (rjsx-maybe-message "did not match } after expression")
@@ -494,8 +496,11 @@ until the end of the JSX node"
             (rjsx-maybe-message "Skipped over `%s'" (js2-current-token-string)))
           (when (memq (js2-current-token-type) (list js2-DIV js2-GT))
             (js2-unget-token)))
-        (js2-report-error "msg.no.rc.after.expr" nil beg
-                          (- (js2-current-token-beg) beg)))
+        (unless (js2-error-node-p child)
+          (js2-report-error "msg.no.rc.after.expr" nil beg
+                            (- (js2-current-token-beg) beg))))
+      (when (js2-error-node-p child)
+        (js2-report-error "msg.syntax" nil beg (- (js2-current-token-end) beg)))
       (setf (js2-node-len pn) (- (js2-current-token-end) beg))
       pn)))
 
