@@ -10,6 +10,8 @@
 
 (load-file "./js2-tests.el")
 (require 'rjsx-mode)
+(require 'cl-lib)
+(require 'ert)
 
 (defun js2-mode--and-parse ()  ;; No point in advising, so we just overwrite this internal function
   (js2-jsx-mode)
@@ -150,7 +152,7 @@ Currently only forms with syntax errors are supported.
                          :expected-result :failed
                          (jsx-test--forms '(,form))))
                     fail-forms))))
-      (case (length tests)
+      (cl-case (length tests)
         (0 (error "Did not specify any forms"))
         (1 (car tests))
         (t `(progn ,@tests))))))
