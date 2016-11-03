@@ -533,17 +533,29 @@ argument ALLOW-NS is nil, does not allow namespaced names."
             (continue t)
             matched-colon )
         (while (and continue
-                    (or (= (js2-peek-token) js2-SUB)
+                    (or (memq (js2-peek-token) (list js2-SUB js2-ASSIGN_SUB))
                         (and allow-colon (= (js2-peek-token) js2-COLON))))
 
           (if (setq matched-colon (js2-match-token js2-COLON))
               (setf (rjsx-identifier-namespace pn) (apply #'concat (nreverse name-parts))
                     allow-colon nil
                     name-parts (list))
-            (js2-get-token) ;; Must be a js2-SUB
+            (when (= (js2-get-token) js2-ASSIGN_SUB) ; Otherwise it's a js2-SUB
+              (setf (js2-token-end (js2-current-token)) (1- (js2-current-token-end))
+                    (js2-token-type (js2-current-token)) js2-SUB
+                    (js2-token-string (js2-current-token)) "-"
+                    js2-ts-cursor (1+ (js2-current-token-beg))
+                    js2-ti-lookahead 0))
             (push "-" name-parts))
           (if (js2-match-token js2-NAME)
-              (push (js2-current-token-string) name-parts)
+              (let* (prev-end (this-beg (js2-current-token-beg)))
+                (js2-unget-token)
+                (setq prev-end (js2-current-token-end))
+                (js2-get-token)
+                (if (= prev-end this-beg)
+                    (push (js2-current-token-string) name-parts)
+                  (js2-unget-token)
+                  (setq continue nil)))
             (when (= js2-COLON (js2-current-token-type))
               (js2-report-error "msg.bad.jsx.ident" nil beg (- (js2-current-token-end) beg)))
             ;; We only keep going if this is an `ident-ending-with-dash-colon:'
