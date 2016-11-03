@@ -423,17 +423,25 @@ Assumes the current token is a '{'."
         (beg (js2-current-token-beg))
         missing-dots expr)
     (setq missing-dots (not (js2-match-token js2-TRIPLEDOT)))
-    (setq expr (js2-parse-assign-expr))  ; No tokens consumed when error
+    ;; parse-assign-expr will go crazy if we're looking at `} /', so we
+    ;; check for an empty spread first
+    (if (js2-match-token js2-RC)
+        (setq expr (make-js2-error-node :len 1))
+      (setq expr (js2-parse-assign-expr))
+      (when (js2-error-node-p expr)
+        (pop js2-parsed-errors)))       ; We'll add our own error
+    (unless (or (js2-match-token js2-RC) (js2-error-node-p expr))
+      (js2-report-error "msg.no.rc.after.spread" nil
+                        beg (- (js2-current-token-end) beg)))
+    (setf (rjsx-spread-expr pn) expr)
+    (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
+    (js2-node-add-children pn expr)
     (if (js2-error-node-p expr)
-        expr
-      (unless (js2-match-token js2-RC)  ; Won't consume on error
-        (js2-report-error "msg.no.rc.after.spread" nil
-                          beg (- (js2-current-token-end) beg)))
-      (setf (rjsx-spread-expr pn) expr)
-      (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
-      (js2-node-add-children pn expr)
+        (js2-report-error "msg.syntax" nil beg (- (js2-current-token-end) beg))
       (when missing-dots
-        (js2-report-error "msg.no.dots.in.prop.spread" nil beg (js2-node-len pn)))
+        (js2-report-error "msg.no.dots.in.prop.spread" nil beg (js2-node-len pn))))
+    (if (= 0 (js2-node-len pn))  ; TODO: Is this ever possible?
+        (make-js2-error-node :pos beg :len 0)
       pn)))
 
 (defun rjsx-parse-single-attr ()
