@@ -16,3 +16,6 @@ clean:
 test:
 	${EMACS} $(BATCHFLAGS) -L . -l rjsx-mode.el -l js2-tests.el -l rjsx-tests.el\
 	  -f ert-run-tests-batch-and-exit
+
+install-deps:
+	${EMACS} $(BATCHFLAGS) -l test-install-deps.el
