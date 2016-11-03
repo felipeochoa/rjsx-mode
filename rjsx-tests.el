@@ -215,10 +215,10 @@ Currently only forms with syntax errors are supported.
   :errors-count 2 ; tag parsed as xml-lmx, then erratic decrement, then missing attr value
   :syntax-error "--") ;; TODO: report the error over the entire tag
 
-(js2-deftest-parse-expected-failure invalid-tag-whitespace-before-dash
+(js2-deftest-parse invalid-tag-whitespace-before-dash
   "<div -attr/>"
-  :errors-count 1
-  :syntax-error "-attr")
+  :errors-count 2 ; spurious dash followed by missing value
+  :syntax-error "-")
 
 (js2-deftest-parse missing-closing-lt-self-closing
   "<div/"
