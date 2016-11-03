@@ -426,7 +426,7 @@ Assumes the current token is a '{'."
     (setq expr (js2-parse-assign-expr))  ; No tokens consumed when error
     (if (js2-error-node-p expr)
         expr
-      (unless (js2-match-token js2-RC t)  ; Won't consume on error
+      (unless (js2-match-token js2-RC)  ; Won't consume on error
         (js2-report-error "msg.no.rc.after.spread" nil
                           beg (- (js2-current-token-end) beg)))
       (setf (rjsx-spread-expr pn) expr)
