@@ -52,8 +52,7 @@
 (js2-deftest-parse ns-attr
   "<xml:a lmx:attr=\"1\"/>;")
 
-(js2-deftest-parse-expected-failure ns-attr-with-dashes-at-end
-  ;; The js2 tokenizer parses '-=' as a single token, which makes this tough
+(js2-deftest-parse ns-attr-with-dashes-at-end
   "<xml:a lmx:attr-=\"1\"/>;")
 
 (js2-deftest-parse ns-attr-with-dashes-at-end-of-ns
@@ -102,46 +101,108 @@
 
 ;;; Now we test all of the malformed bits:
 
-(js2-deftest-parse mismatched-tags
-  "<div></vid>"
-  :syntax-error "</vid>")
+(defun jsx-test--forms (forms)
+  "Test the parsing of FORMS.
+FORMS must be a list of (CODE-STRING SYNTAX-ERROR &optional ERRORS-COUNT)
+forms, where the values are as in `js2-parse-string'."
+  (ert-with-test-buffer (:name 'origin)
+    (dolist (form forms)
+      (cl-destructuring-bind (code-string syntax-error &optional (errors-count 1)) form
+        (erase-buffer)
+        (let* ((ast (js2-test-string-to-ast code-string))
+               (errors (js2-ast-root-errors ast)))
+          (should (= errors-count (length errors)))
+          (cl-destructuring-bind (_ pos len) (car (last errors))
+            (should (string= syntax-error (substring code-string
+                                                     (1- pos) (+ pos len -1))))))
+        (message (format "Completed test for: %s" code-string))))))
 
-(js2-deftest-parse-expected-failure missing-attr-last
-  ;; The js2 tokenizer parses '=>' as one token
-  "<div attr=></div>"
-  :syntax-error "attr=")
+(cl-defmacro jsx-deftest (name &rest forms)
+  "Define a new test for compactly checking multiple strings' parsing.
+The test is named rjsx-NAME.  FORMS is a list of (CODE-STRING
+SYNTAX-ERROR ERRORS-COUNT) forms, where the values are as in
+`js2-parse-string'.  `&expect-fail' can be inserted anywhere between
+between the forms to split the test into two: forms before the marker
+are expected to pass and forms after the marker are expected to fail.
+Currently only forms with syntax errors are supported.
 
-(js2-deftest-parse missing-attr-last-self-closing
-  "<div attr=/>"
-  :syntax-error "attr=")
+\(fn NAME PASS-FORMS... [:expect-fail FAIL-FORMS...])"
+  (declare (indent defun))
+  (let (fail-forms pass-forms found-marker)
+    (dolist (form forms)
+      (if (eq :expect-fail form)
+          (if found-marker
+              (error "Received multiple :expect-fail markers")
+            (setq found-marker t))
+        (if found-marker
+            (push form fail-forms)
+          (push form pass-forms))))
+    (setq fail-forms (nreverse fail-forms)
+          pass-forms (nreverse pass-forms))
+    (let* ((i 0)
+           (tests (nconc
+                   (and pass-forms
+                        (list `(ert-deftest ,(intern (format "rjsx-%s" name)) ()
+                                (jsx-test--forms ',pass-forms))))
+                   (mapcar
+                    (lambda (form)
+                      `(ert-deftest ,(intern (format "rjsx-%s-expected-fail-%d" name (incf i))) ()
+                         :expected-result :failed
+                         (jsx-test--forms '(,form))))
+                    fail-forms))))
+      (case (length tests)
+        (0 (error "Did not specify any forms"))
+        (1 (car tests))
+        (t `(progn ,@tests))))))
 
-(js2-deftest-parse missing-attr
-  "<div attr= attr2=\"2\"></div>"
-  :syntax-error "attr=")
+(defvar rjsx--find-test-regexp
+  (concat "^\\s-*(rjsx-deftest"
+          find-function-space-re
+          "%s\\(\\s-\\|$\\)")
+  "The regexp the `find-function' mechanisms use for finding RJSX test definitions.")
 
-(js2-deftest-parse-expected-failure missing-attr-last-self-closing-last-dash
-  "<div attr-=/>"
-  :syntax-error "attr-=")
+(setf (alist-get 'rjsx-deftest find-function-regexp-alist) 'rjsx--find-test-regexp)
 
-(js2-deftest-parse-expected-failure missing-attr-last-dash
-  "<div attr-= attr2=\"2\"></div>"
-  :syntax-error "attr-=")
+(defun rjsx-find-test-advice (orig-fn test-name)
+  "Advice for `ert-find-test-other-window' (ORIG-FN) to find TEST-NAME."
+  (interactive (list (ert-read-test-name-at-point "Find test definition: ")))
+  (if (string-match "^rjsx-\\([a-z-]+?\\)\\(-expected-fail\\)?$" (symbol-name test-name))
+      (let* ((file (symbol-file test-name 'ert-deftest))
+             (buffer-point (find-definition-noselect (intern (match-string 1 (symbol-name test-name)))
+                                                     'rjsx-deftest
+                                                     file))
+             (switch-fn 'switch-to-buffer-other-window)
+             ;; The rest of this let-form was copy-pasted from
+             ;; `find-funciton-do-it' to be able to override the
+             ;; buffer-finding bit
+             (orig-point (point))
+             (orig-buffers (buffer-list))
+             ;(buffer-point (save-excursion (find-definition-noselect symbol type)))
+             (new-buf (car buffer-point))
+             (new-point (cdr buffer-point)))
+        (when buffer-point
+          (when (memq new-buf orig-buffers)
+            (push-mark orig-point))
+          (funcall switch-fn new-buf)
+          (when new-point (goto-char new-point))
+          (recenter find-function-recenter-line)
+          (run-hooks 'find-function-after-hook)))
+    (funcall orig-fn test-name)))
 
-(js2-deftest-parse missing-eq-after-att-self-closing
-  "<div attr/>"
-  :syntax-error "attr")
+(advice-add 'ert-find-test-other-window :around #'rjsx-find-test-advice)
 
-(js2-deftest-parse missing-eq-after-att
-  "<div attr></div>"
-  :syntax-error "attr")
 
-(js2-deftest-parse missing-eq-after-att-self-closing-dashes
-  "<div attr-name/>"
-  :syntax-error "attr-name")
+;; Tag problems
 
-(js2-deftest-parse missing-eq-after-att-dashes
-  "<div attr-name></div>"
-  :syntax-error "attr-name")
+(jsx-deftest mismatched-tags
+  ("<div></vid>" "</vid>")
+  ("<div-></vid->" "</vid->")
+  ("<div-></div>" "</div>")
+  ("<div-name></divname>" "</divname>")
+  ("<ns:div></div>" "</div>")
+  ("<ns-:div></ns:div>" "</ns:div>")
+  ("<ns-a:div></nsa:div>" "</nsa:div>")
+  ("<ns-a:div-></ns-a:div>" "</ns-a:div>"))
 
 (js2-deftest-parse invalid-tag-member-and-ns-self-closing
   "<xml:Component.Child/>"
@@ -151,50 +212,12 @@
 (js2-deftest-parse invalid-ns-tag-with-double-dashes
   "<xml-lmx--m:a-b-c/>;"
   :errors-count 2 ; tag parsed as xml-lmx, then erratic decrement, then missing attr value
-  :syntax-error "--")
+  :syntax-error "--") ;; TODO: report the error over the entire tag
 
-(js2-deftest-parse invalid-jsx-string-in-attr
-  "<div a=\"He said, \\\"Don't you worry child\\\"\"/>"
-  :syntax-error "\"He said, \\\"Don't you worry child\\\"\"")
-
-(js2-deftest-parse invalid-jsx-string-in-attr-single-quotes
-  "<div a='He said, \"Don\\'t you worry child\"'/>"
-  :syntax-error "'He said, \"Don\\'t you worry child\"'")
-
-(js2-deftest-parse invalid-attr-value
-  "<div a=123/>"
-  :errors-count 2 ; missing attr value; erratic number
-  :syntax-error "a=")
-
-(js2-deftest-parse attr-missing-rc-at-end
-  "<div a={123/>"
-  :errors-count 2
-  :syntax-error "{123/")
-
-(js2-deftest-parse attr-missing-rc
-  "<div a={123 b=\"1\"/>"
+(js2-deftest-parse-expected-failure invalid-tag-whitespace-before-dash
+  "<div -attr/>"
   :errors-count 1
-  :syntax-error "{123 b=\"1\"")
-
-(js2-deftest-parse invalid-spread-value
-  "<div {...&&}/>"
-  :errors-count 1
-  :syntax-error "&")
-
-(js2-deftest-parse spread-value-missing-dots
-  "<div {props}/>"
-  :errors-count 1
-  :syntax-error "{props}")
-
-(js2-deftest-parse spread-value-missing-rc
-  "<div {...props a=\"1\"/>"
-  :errors-count 1
-  :syntax-error "{...props")
-
-(js2-deftest-parse spread-value-missing-at-end
-  "<div {...props/>"
-  :errors-count 2
-  :syntax-error "{...props/")
+  :syntax-error "-attr")
 
 (js2-deftest-parse missing-closing-lt-self-closing
   "<div/"
@@ -213,6 +236,8 @@
   "<xyz abc:={1} />"
   :syntax-error "abc:")
 
+;; Make sure we don't hang with unclosed tags
+
 (js2-deftest-parse falls-off-a-cliff-but-doesnt-hang
   "const Component = ({prop}) => <span>;\n\nexport default Component;"
   :syntax-error ";\n\nexport default Component;")
@@ -230,6 +255,288 @@
   "const Component = ({prop}) => <div>{pred && <span>};\n\nexport { Component }"
   :errors-count 2
   :syntax-error "}")
+
+;; Malformed attributes have a number of permutations:
+;;
+;; A/ Missing equals sign, missing value, missing right curly, bad expression
+;; B/ Before another attribute (spread vs expr vs string) or
+;;    at the end of the tag (self-closing or not)
+;; C/ No dashes in its name, ends in a dash, dashes but not at the end
+;; D/ With a namespaced name or not
+;;
+;; Combinatorial explosion! 4 * 5 * 3 * 2 = 120!
+
+;; Here are all the missing equals sign tests:
+(jsx-deftest attr-missing-equals-sign-no-dashes
+  ("<div attr {...attr2}/>" "attr")
+  ("<div attr/>" "attr")
+  ("<div attr></div>" "attr")
+  ("<div attr attr2={123}/>" "attr")
+  ("<div attr attr2=\"123\"/>" "attr"))
+
+(jsx-deftest attr-missing-equals-sign-ends-in-dash
+  ("<div attr- attr2=\"123\"/>" "attr-")
+  ("<div attr- attr2={123}/>" "attr-")
+  ("<div attr- {...attr2}/>" "attr-")
+  ("<div attr-/>" "attr-")
+  ("<div attr-></div>" "attr-"))
+
+(jsx-deftest attr-missing-equals-sign-interior-dashes
+  ("<div attr-name {...attr2}/>" "attr-name")
+  ("<div attr-name/>" "attr-name")
+  ("<div attr-name></div>" "attr-name")
+  ("<div attr-name attr2={123}/>" "attr-name")
+  ("<div attr-name attr2=\"123\"/>" "attr-name"))
+
+(jsx-deftest attr-missing-equals-sign-no-dashes-namespaced
+  ("<div ns:attr {...attr2}/>" "ns:attr")
+  ("<div ns:attr/>" "ns:attr")
+  ("<div ns:attr></div>" "ns:attr")
+  ("<div ns:attr attr2={123}/>" "ns:attr")
+  ("<div ns:attr attr2=\"123\"/>" "ns:attr"))
+
+(jsx-deftest attr-missing-equals-sign-ends-in-dash-namespaced
+  ("<div ns:attr- {...attr2}/>" "ns:attr-")
+  ("<div ns:attr-/>" "ns:attr-")
+  ("<div ns:attr-></div>" "ns:attr-")
+  ("<div ns:attr- attr2={123}/>" "ns:attr-")
+  ("<div ns:attr- attr2=\"123\"/>" "ns:attr-"))
+
+(jsx-deftest attr-missing-equals-sign-interior-dashes-namespaced
+  ("<div ns:attr-name {...attr2}/>" "ns:attr-name")
+  ("<div ns:attr-name/>" "ns:attr-name")
+  ("<div ns:attr-name></div>" "ns:attr-name")
+  ("<div ns:attr-name attr2={123}/>" "ns:attr-name")
+  ("<div ns:attr-name attr2=\"123\"/>" "ns:attr-name"))
+
+;; Here are all the missing values sign tests:
+(jsx-deftest attr-missing-value-no-dashes
+  ("<div attr= attr2={123}/>" "attr=")
+  ("<div attr= attr2=\"123\"/>" "attr=")
+  ("<div attr=/>" "attr=")
+  :expect-fail
+  ("<div attr= {...attr2}/>" "attr=") ; spread parsed as attribute value
+  ("<div attr=></div>" "attr=")) ; JS2 parses the => as an arrow
+
+(jsx-deftest attr-missing-value-ends-in-dash
+  ("<div attr-= attr2={123}/>" "attr-=")
+  ("<div attr-= attr2=\"123\"/>" "attr-=")
+  ("<div attr-=/>" "attr-=")
+  :expect-fail
+  ("<div attr-= {...attr2}/>" "attr-=")
+  ("<div attr-=></div>" "attr-="))
+
+(jsx-deftest attr-missing-value-interior-dashes
+  ("<div attr-name= attr2={123}/>" "attr-name=")
+  ("<div attr-name= attr2=\"123\"/>" "attr-name=")
+  ("<div attr-name=/>" "attr-name=")
+  :expect-fail
+  ("<div attr-name= {...attr2}/>" "attr-name=")
+  ("<div attr-name=></div>" "attr-name="))
+
+(jsx-deftest attr-missing-value-no-dashes-namespaced
+  ("<div ns:attr= attr2={123}/>" "ns:attr=")
+  ("<div ns:attr= attr2=\"123\"/>" "ns:attr=")
+  ("<div ns:attr=/>" "ns:attr=")
+  :expect-fail
+  ("<div ns:attr= {...attr2}/>" "ns:attr=")
+  ("<div ns:attr=></div>" "ns:attr="))
+
+(jsx-deftest attr-missing-value-ends-in-dash-namespaced
+  ("<div ns:attr-= attr2={123}/>" "ns:attr-=")
+  ("<div ns:attr-= attr2=\"123\"/>" "ns:attr-=")
+  ("<div ns:attr-=/>" "ns:attr-=")
+  :expect-fail
+  ("<div ns:attr-= {...attr2}/>" "ns:attr-=")
+  ("<div ns:attr-=></div>" "ns:attr-="))
+
+(jsx-deftest attr-missing-value-interior-dashes-namespaced
+  ("<div ns:attr-name= attr2={123}/>" "ns:attr-name=")
+  ("<div ns:attr-name= attr2=\"123\"/>" "ns:attr-name=")
+  ("<div ns:attr-name=/>" "ns:attr-name=")
+  :expect-fail
+  ("<div ns:attr-name= {...attr2}/>" "ns:attr-name=")
+  ("<div ns:attr-name=></div>" "ns:attr-name="))
+
+;; Missing right curly in attribute
+(jsx-deftest attr-missing-rc-no-dashes
+  :expect-fail
+  ("<div attr={123 {...attr2}/>" "attr={123")
+  ("<div attr={123 attr2={123}/>" "attr={123")
+  ("<div attr={123 attr2=\"123\"/>" "attr={123")
+  ("<div attr={123/>" "attr={123")
+  ("<div attr={123></div>" "attr={123"))
+
+(jsx-deftest attr-missing-rc-ends-in-dash
+  :expect-fail
+  ("<div attr-={123 {...attr2}/>" "attr-={123")
+  ("<div attr-={123 attr2={123}/>" "attr-={123")
+  ("<div attr-={123 attr2=\"123\"/>" "attr-={123")
+  ("<div attr-={123/>" "attr-={123")
+  ("<div attr-={123></div>" "attr-={123"))
+
+(jsx-deftest attr-missing-rc-interior-dashes
+  :expect-fail
+  ("<div attr-name={123 {...attr2}/>" "attr-name={123")
+  ("<div attr-name={123 attr2={123}/>" "attr-name={123")
+  ("<div attr-name={123 attr2=\"123\"/>" "attr-name={123")
+  ("<div attr-name={123/>" "attr-name={123")
+  ("<div attr-name={123></div>" "attr-name={123"))
+
+(jsx-deftest attr-missing-rc-no-dashes-namespaced
+  :expect-fail
+  ("<div ns:attr={123 {...attr2}/>" "ns:attr={123")
+  ("<div ns:attr={123 attr2={123}/>" "ns:attr={123")
+  ("<div ns:attr={123 attr2=\"123\"/>" "ns:attr={123")
+  ("<div ns:attr={123/>" "ns:attr={123")
+  ("<div ns:attr={123></div>" "ns:attr={123"))
+
+(jsx-deftest attr-missing-rc-ends-in-dash-namespaced
+  :expect-fail
+  ("<div ns:attr-={123 {...attr2}/>" "ns:attr-={123")
+  ("<div ns:attr-={123 attr2={123}/>" "ns:attr-={123")
+  ("<div ns:attr-={123 attr2=\"123\"/>" "ns:attr-={123")
+  ("<div ns:attr-={123/>" "ns:attr-={123")
+  ("<div ns:attr-={123></div>" "ns:attr-={123"))
+
+(jsx-deftest attr-missing-rc-interior-dashes-namespaced
+  :expect-fail
+  ("<div ns:attr-name={123 {...attr2}/>" "ns:attr-name={123")
+  ("<div ns:attr-name={123 attr2={123}/>" "ns:attr-name={123")
+  ("<div ns:attr-name={123 attr2=\"123\"/>" "ns:attr-name={123")
+  ("<div ns:attr-name={123/>" "ns:attr-name={123")
+  ("<div ns:attr-name={123></div>" "ns:attr-name={123"))
+
+
+;; Here are all the bad values sign tests:
+(jsx-deftest attr-bad-value-no-dashes
+  ("<div attr={&&} attr2={123}/>" "{&&}")
+  ("<div attr={&&} {...attr2}/>" "{&&}")
+  ("<div attr={&&} attr2=\"123\"/>" "{&&}")
+  ("<div attr={&&}/>" "{&&}")
+  ("<div attr={&&}></div>" "{&&}"))
+
+(jsx-deftest attr-bad-value-ends-in-dash
+  ("<div attr-={&&} {...attr2}/>" "{&&}")
+  ("<div attr-={&&} attr2={123}/>" "{&&}")
+  ("<div attr-={&&} attr2=\"123\"/>" "{&&}")
+  ("<div attr-={&&}/>" "{&&}")
+  ("<div attr-={&&}></div>" "{&&}"))
+
+(jsx-deftest attr-bad-value-interior-dashes
+  ("<div attr-name={&&} {...attr2}/>" "{&&}")
+  ("<div attr-name={&&} attr2={123}/>" "{&&}")
+  ("<div attr-name={&&} attr2=\"123\"/>" "{&&}")
+  ("<div attr-name={&&}/>" "{&&}")
+  ("<div attr-name={&&}></div>" "{&&}"))
+
+(jsx-deftest attr-bad-value-no-dashes-namespaced
+  ("<div ns:attr={&&} {...attr2}/>" "{&&}")
+  ("<div ns:attr={&&} attr2={123}/>" "{&&}")
+  ("<div ns:attr={&&} attr2=\"123\"/>" "{&&}")
+  ("<div ns:attr={&&}/>" "{&&}")
+  ("<div ns:attr={&&}></div>" "{&&}"))
+
+(jsx-deftest attr-bad-value-ends-in-dash-namespaced
+  ("<div ns:attr-={&&} {...attr2}/>" "{&&}")
+  ("<div ns:attr-={&&} attr2={123}/>" "{&&}")
+  ("<div ns:attr-={&&} attr2=\"123\"/>" "{&&}")
+  ("<div ns:attr-={&&}/>" "{&&}")
+  ("<div ns:attr-={&&}></div>" "{&&}"))
+
+(jsx-deftest attr-bad-value-interior-dashes-namespaced
+  ("<div ns:attr-name={&&} {...attr2}/>" "{&&}")
+  ("<div ns:attr-name={&&} attr2={123}/>" "{&&}")
+  ("<div ns:attr-name={&&} attr2=\"123\"/>" "{&&}")
+  ("<div ns:attr-name={&&}/>" "{&&}")
+  ("<div ns:attr-name={&&}></div>" "{&&}"))
+
+;; Invalid jsx-strings
+
+(js2-deftest-parse invalid-jsx-string-in-attr
+  "<div a=\"He said, \\\"Don't you worry child\\\"\"/>"
+  :syntax-error "\"He said, \\\"Don't you worry child\\\"\"")
+
+(js2-deftest-parse invalid-jsx-string-in-attr-single-quotes
+  "<div a='He said, \"Don\\'t you worry child\"'/>"
+  :syntax-error "'He said, \"Don\\'t you worry child\"'")
+
+;; Spread-specific errors also have some combinatorial complexity:
+;; A/ Missing value or bad value or good value
+;; B/ With or without dots
+;; C/ With or without right curly (except if good value and dots are there)
+;; D/ Before another attribute (spread vs expr vs string) or
+;;    at the end of the tag (self-closing or not)
+;;
+;; Total = (3 * 2 * 2 - 1) * 5 = 55
+
+(jsx-deftest spread-no-value-no-dots-no-rc
+  :expect-fail
+  ("<div { {...other}/>" "{")
+  ("<div { attr={123}/>" "{")
+  ("<div { attr=\"123\"/>" "{")
+  ("<div { />" "{")
+  ("<div { ></div>" "{"))
+
+(jsx-deftest spread-no-value-no-dots-with-rc
+  ("<div {} {...other}/>" "{}")
+  ("<div {} attr={123}/>" "{}")
+  ("<div {} attr=\"123\"/>" "{}")
+  ("<div {} />" "{}")
+  ("<div {} ></div>" "{}"))
+
+(jsx-deftest spread-no-value-with-dots-no-rc
+  :expect-fail
+  ("<div {... {...other}/>" "{...")
+  ("<div {... attr={123}/>" "{...")
+  ("<div {... attr=\"123\"/>" "{...")
+  ("<div {... />" "{...")
+  ("<div {... ></div>" "{..."))
+
+(jsx-deftest spread-no-value-with-dots-with-rc
+  ("<div {...} />" "{...}")
+  ("<div {...} attr={123}/>" "{...}")
+  ("<div {...} {...other}/>" "{...}")
+  ("<div {...} attr=\"123\"/>" "{...}")
+  ("<div {...} ></div>" "{...}"))
+
+(jsx-deftest spread-bad-value-no-dots-no-rc
+  :expect-fail
+  ("<div {&& {...other}/>" "{&&")
+  ("<div {&& attr={123}/>" "{&&")
+  ("<div {&& attr=\"123\"/>" "{&&")
+  ("<div {&& />" "{&&")
+  ("<div {&& ></div>" "{&&"))
+
+(jsx-deftest spread-bad-value-no-dots-with-rc
+  ("<div {&&} {...other}/>" "{&&}")
+  ("<div {&&} attr={123}/>" "{&&}")
+  ("<div {&&} attr=\"123\"/>" "{&&}")
+  ("<div {&&} />" "{&&}")
+  ("<div {&&} ></div>" "{&&}"))
+
+(jsx-deftest spread-bad-value-with-dots-with-rc
+  ("<div {...&&} {...other}/>" "{...&&}")
+  ("<div {...&&} attr={123}/>" "{...&&}")
+  ("<div {...&&} attr=\"123\"/>" "{...&&}")
+  ("<div {...&&} />" "{...&&}")
+  ("<div {...&&} ></div>" "{...&&}"))
+
+(jsx-deftest spread-good-value-no-dots-no-rc
+  :expect-fail
+  ("<div {{a: 123} {...other}/>" "{{a: 123}")
+  ("<div {{a: 123} attr={123}/>" "{{a: 123}")
+  ("<div {{a: 123} attr=\"123\"/>" "{{a: 123}")
+  ("<div {{a: 123} />" "{{a: 123}")
+  ("<div {{a: 123} ></div>" "{{a: 123}"))
+
+(jsx-deftest spread-good-value-no-dots-with-rc
+  ("<div {{a: 123}} {...other}/>" "{{a: 123}}")
+  ("<div {{a: 123}} attr={123}/>" "{{a: 123}}")
+  ("<div {{a: 123}} attr=\"123\"/>" "{{a: 123}}")
+  ("<div {{a: 123}} />" "{{a: 123}}")
+  ("<div {{a: 123}} ></div>" "{{a: 123}}"))
+
 
 ;; Other odds and ends
 
