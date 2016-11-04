@@ -15,7 +15,7 @@ Here's a screenshot of it in action:
 ## Installing
 
 `rjsx-mode` is available on [Melpa](https://melpa.org/), so if you have that
-repository configured you can just `list-packages` and install it from there.
+repository configured you can just `package-list-packages` and install it from there.
 (If not, you can follow [their guide](https://melpa.org/#/getting-started) on
 getting started). `rjsx-mode` automatically registers itself for `*.jsx` files, 
 but you can use `(add-to-list 'auto-mode-alist '("components\\/.*\\.js\\'" . rjsx-mode))`
