@@ -1,13 +1,13 @@
 # rjsx-mode
 [![Build Status](https://travis-ci.org/felipeochoa/rjsx-mode.svg?branch=master)](https://travis-ci.org/felipeochoa/rjsx-mode)
 
-A real JSX minor mode for use with js2-mode
+A major mode for editing JSX files.
 
 This mode implements a JSX parser according to the
-spec [here](https://facebook.github.io/jsx/). When enabled, it plugs
-the JSX parser into `js2-mode`'s own parser to build the JSX
-AST. Currently the mode handles syntax checking and highlighting, and
-when you use `js2-jsx-mode` (bundled with `j2-mode`), also indentation.
+spec [here](https://facebook.github.io/jsx/). This mode derives from
+`js2-jsx-mode`, extending its parser to support JSX syntax. This
+means you get all of the `js2` features plus proper syntax checking
+and highlighting of JSX code blocks.
 
 Here's a screenshot:
 
