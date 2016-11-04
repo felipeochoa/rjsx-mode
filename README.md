@@ -33,7 +33,7 @@ Some features that this mode adds to `js2`:
 * Highlighting JSX tag names and attributes (using the `rjsx-tag` and 
   `rjsx-attr` faces)
 * Parsing the spread operator `{...otherProps}`
-* `&&` and `||` in child expressions `<div>{cond && <BigComponent/>}</div>
+* `&&` and `||` in child expressions `<div>{cond && <BigComponent/>}</div>`
 * Ternary expressions `<div>{toggle ? <ToggleOn /> : <ToggleOff />}</div>`
 
 Additionally, since `rjsx-mode` extends the `js2` AST, utilities using the
