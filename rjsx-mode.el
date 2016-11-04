@@ -9,7 +9,7 @@
 ;; Keywords: languages
 
 ;;; Commentary:
-;; Defines a minor mode `rjsx-mode' that swaps out js2-mode's
+;; Defines a major mode `rjsx-mode' that swaps out js2-mode's
 ;; XML parsing (made for E4X) with a JSX parser
 
 ;;; Code:
