@@ -4,7 +4,7 @@
 
 ;; Author: Felipe Ochoa <felipe@fov.space>
 ;; URL: https://github.com/felipeochoa/rjsx-mode/
-;; Package-Requires: ((emacs "24.4") (js2-mode "20160623") (cl-lib "0.5"))
+;; Package-Requires: ((emacs "24.4") (js2-mode "20160623"))
 ;; Version: 1.0
 ;; Keywords: languages
 
@@ -27,7 +27,8 @@
   :lighter ":RJSX"
   :group 'rjsx-mode)
 
-;;;###autoload (add-to-list 'auto-mode-alist '("\\.jsx\\'" . rjsx-mode))
+;;;###autoload
+(add-to-list 'auto-mode-alist '("\\.jsx\\'" . rjsx-mode))
 
 (defun rjsx-parse-xml-initializer (orig-fun)
   "Dispatch the xml parser based on variable `rjsx-mode' being active or not.
