@@ -9,7 +9,7 @@ and highlighting of JSX code blocks.
 
 Here's a screenshot of it in action:
 
-![Actual syntax highlighting and no spurious errors!](demo.png)
+<img src="demo.png" width="600" alt="Actual syntax highlighting and no spurious errors!">
 
 
 ## Installing
