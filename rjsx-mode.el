@@ -779,5 +779,11 @@ slash and inserts a matching end-tag."
 
 (define-key rjsx-mode-map (kbd "C-d") 'rjsx-delete-creates-full-tag)
 
+
 (provide 'rjsx-mode)
 ;;; rjsx-mode.el ends here
+
+;; Local Variables:
+;; outline-regexp: ";;;\\(;* [^
+;; ]\\|###autoload\\)\\|(....."
+;; End:
