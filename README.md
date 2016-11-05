@@ -47,7 +47,7 @@ JSX elements less repetitive:
 
 The result is you can do the following:
 
-<img src="key-demo.png" width="371" alt="Quickly and easily add new components">
+<img src="key-demo.gif" width="200" alt="Quickly and easily add new components">
 
 Additionally, since `rjsx-mode` extends the `js2` AST, utilities using the
 parse tree gain access to the JSX structure.
