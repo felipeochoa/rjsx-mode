@@ -753,10 +753,31 @@ inserts `< />' and places the cursor inside the new tag."
                               (zero-or-more (or "\n" space)))
                           (point-at-bol -2))
             (progn (insert "</>")
-                   (goto-char (- (point) 2)))
+                   (backward-char 2))
           (insert "<")))))
 
 (define-key rjsx-mode-map "<" 'rjsx-electric-lt)
+
+(defun rjsx-delete-creates-full-tag (n &optional killflag)
+  "N and KILLFLAG are as in `delete-char'.
+If N is 1 and KILLFLAG nil, checks to see if we're in a
+self-closing tag about to delete the slash.  If so, deletes the
+slash and inserts a matching end-tag."
+  (interactive "p")
+  (if (or killflag (/= 1 n) (not (looking-at-p "/\\s-*>")) (not js2-mode-ast))
+      (call-interactively 'delete-char)
+    (let ((node (js2-node-at-point (point) t)))
+      (while (and node (not (rjsx-node-p node)))
+        (setq node (js2-node-parent node)))
+      (if node
+          (progn
+            (delete-char 1)
+            (search-forward ">" )
+            (save-excursion
+              (insert "</" (rjsx-node-opening-tag-name node) ">")))
+        (delete-char 1)))))
+
+(define-key rjsx-mode-map (kbd "C-d") 'rjsx-delete-creates-full-tag)
 
 (provide 'rjsx-mode)
 ;;; rjsx-mode.el ends here
