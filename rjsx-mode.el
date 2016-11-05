@@ -350,13 +350,13 @@ This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
       (if (js2-error-node-p name-n)
           (progn (rjsx-maybe-message "could not parse tag name")
                  (make-js2-error-node :pos (js2-node-pos pn) :len (1+ (js2-node-len name-n))))
+        (js2-node-add-children pn name-n)
         (setq name-str (if (rjsx-member-p name-n) (rjsx-member-full-name name-n)
                          (rjsx-identifier-full-name name-n)))
         (rjsx-maybe-message "cleared tag name: '%s'" name-str)
         ;; Now parse the attributes
         (rjsx-parse-attributes pn)
         (rjsx-maybe-message "cleared attributes")
-        (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
         ;; Now parse either a self closing tag or the end of the opening tag
         (rjsx-maybe-message "next type: `%s'" (js2-peek-token))
         (if (setq self-closing (js2-match-token js2-DIV))
@@ -382,6 +382,7 @@ This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
           (js2-node-add-children pn child)
           (setf (rjsx-node-closing-tag pn) child))
         (rjsx-maybe-message "Returning completed XML node")
+        (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
         pn))))
 
 (defun rjsx-parse-empty-tag ()
