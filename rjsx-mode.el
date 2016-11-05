@@ -142,8 +142,11 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
 (defun rjsx-node-opening-tag-name (node)
   "Return a string with NODE's opening tag including any namespace and member operations."
   (let ((name-n (rjsx-node-name node)))
-    (if (rjsx-member-p name-n) (rjsx-member-full-name name-n)
-      (rjsx-identifier-full-name name-n))))
+    (cond
+     ((rjsx-member-p name-n) (rjsx-member-full-name name-n))
+     ((rjsx-identifier-p name-n) (rjsx-identifier-full-name name-n))
+     ;; Otherwise it's either nil or an error. Either way, no name :(
+     (t ""))))
 
 (defun rjsx-node-push-prop (n rjsx-prop)
   "Extend rjsx-node N's rjsx-props with js2-node RJSX-PROP.
@@ -184,9 +187,10 @@ Sets KID's parent to N."
 (defun rjsx-closing-tag-full-name (n)
   "Return the string with N's fully-namespaced name, or just name if it's not namespaced."
   (let ((child (rjsx-closing-tag-name n)))
-    (if (rjsx-member-p child)
-        (rjsx-member-full-name child)
-      (rjsx-identifier-full-name child))))
+    (cond
+     ((rjsx-member-p child) (rjsx-member-full-name child))
+     ((rjsx-identifier-p child) (rjsx-identifier-full-name child))
+     (t ""))))
 
 (cl-defstruct (rjsx-identifier
                (:include js2-node (type rjsx-JSX-IDENT))
