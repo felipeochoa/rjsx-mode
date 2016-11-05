@@ -257,6 +257,11 @@ Currently only forms with syntax errors are supported.
   :errors-count 2
   :syntax-error "}")
 
+(jsx-deftest empty-tag-encounter-survived
+  ("</>" "<")
+  ("<div></></div>" "<")
+  ("<div>{a && </>}</div>" "<"))
+
 ;; Malformed attributes have a number of permutations:
 ;;
 ;; A/ Missing equals sign, missing value, missing right curly, bad expression
