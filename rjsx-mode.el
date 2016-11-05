@@ -735,5 +735,27 @@ closing tag was parsed."
           (throw 'rjsx-eof-while-parsing t))
          (t (js2-add-to-string c)))))))
 
+
+;;;; Interactive commands and keybindings
+(defun rjsx-electric-lt (n)
+    "Insert a context-sensitive less-than sign.
+Optional prefix argument N indicates how many signs to insert.
+If N is greater than one, no special handling takes place.
+Otherwise, if the less-than sign would start a JSX block, it
+inserts `< />' and places the cursor inside the new tag."
+    (interactive "p")
+    (if (/= n 1)
+        (insert (make-string n "<"))
+      (let ((inhibit-changing-match-data t))
+        (if (looking-back (rx (or "=" "(" "?" ":" ">" "}" "&" "|" "{"
+                                  "return")
+                              (zero-or-more (or "\n" space)))
+                          (point-at-bol -2))
+            (progn (insert "</>")
+                   (goto-char (- (point) 2)))
+          (insert "<")))))
+
+(define-key rjsx-mode-map "<" 'rjsx-electric-lt)
+
 (provide 'rjsx-mode)
 ;;; rjsx-mode.el ends here

@@ -544,8 +544,8 @@ Currently only forms with syntax errors are supported.
   ("<div {{a: 123}} ></div>" "{{a: 123}}"))
 
 
+
 ;; Other odds and ends
-
 
 (ert-deftest rjsx-node-opening-tag ()
   (ert-with-test-buffer (:name 'origin)
@@ -566,5 +566,41 @@ Currently only forms with syntax errors are supported.
             ((rjsx-closing-tag-p node)
              (should (string= (caddr test) (rjsx-closing-tag-full-name node))))))
          nil)))))
+
+(ert-deftest rjsx-electric-lt ()
+  (let ((cases '("let c = "
+                 "let c = (\n  "
+                 "let c = (\n  <div>\n    "
+                 "let c = name => "
+                 "let c = (\n  <div>\n    {value}\n    "
+                 "let c = <div a={"
+                 "let c = <div>{a && "
+                 "let c = <div>{a || "
+                 "let c = <div>{a ? "
+                 "let c = <div>{a ? null :"
+                 "return ")))
+    (ert-with-test-buffer (:name 'origin)
+      (dolist (contents cases)
+        (insert contents)
+        (rjsx-electric-lt 1)
+        (should (string= (buffer-substring-no-properties (point-min) (point))
+                         (concat contents "<")))
+        (should (string= (buffer-substring-no-properties (point) (point-max))
+                         "/>"))
+        (erase-buffer)))))
+
+(ert-deftest rjsx-electric-lt-grounded ()
+  (let ((cases '("let c = 3 "
+                 "if (n "
+                 "(abc && def) ")))
+    (ert-with-test-buffer (:name 'origin)
+      (dolist (contents cases)
+        (insert contents)
+        (rjsx-electric-lt 1)
+        (should (string= (buffer-substring-no-properties (point-min) (point))
+                         (concat contents "<")))
+        (should (string= (buffer-substring-no-properties (point) (point-max))
+                         ""))
+        (erase-buffer)))))
 
 ;;; rjsx-tests.el ends here
