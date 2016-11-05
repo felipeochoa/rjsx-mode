@@ -27,6 +27,8 @@
 
 ;;; Code:
 
+;;;; Basic mode definitions
+
 (require 'cl-lib)
 (require 'js2-mode)
 
@@ -58,6 +60,19 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
   (advice-remove 'js2-parse-xml-initializer #'rjsx-parse-xml-initializer))
 
 
+(defface rjsx-tag
+  '((t . (:inherit font-lock-function-name-face)))
+  "`rjsx-mode' face used to highlight JSX tag names."
+  :group 'rjsx-mode)
+
+(defface rjsx-attr
+  '((t . (:inherit font-lock-variable-name-face)))
+  "`rjsx-mode' face used to highlight JSX attribute names."
+  :group 'rjsx-mode)
+
+
+;;;; Parser constants struct definitions
+
 ;;Token types for XML nodes. Never returned by scanner
 (defvar rjsx-JSX            (+ 1 js2-num-tokens))
 (defvar rjsx-JSX-CLOSE      (+ 2 js2-num-tokens))
@@ -71,29 +86,17 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
 (js2-msg "msg.bad.jsx.ident" "invalid JSX identifier")
 (js2-msg "msg.invalid.jsx.string" "invalid JSX string (cannot contain delimiter in string body)")
 (js2-msg "msg.mismatched.close.tag" "mismatched closing JSX tag; expected `%s'")
-(js2-msg "msg.no.gt.in.opener" "missing '>' in opening tag")
-(js2-msg "msg.no.gt.in.closer" "missing '>' in closing tag")
-(js2-msg "msg.no.gt.after.slash" "missing '>' after '/' in self-closing tag")
-(js2-msg "msg.no.rc.after.spread" "missing '}' after spread-prop")
-(js2-msg "msg.no.equals.after.jsx.prop" "missing '=' after prop `%s'")
+(js2-msg "msg.no.gt.in.opener" "missing `>' in opening tag")
+(js2-msg "msg.no.gt.in.closer" "missing `>' in closing tag")
+(js2-msg "msg.no.gt.after.slash" "missing `>' after `/' in self-closing tag")
+(js2-msg "msg.no.rc.after.spread" "missing `}' after spread-prop")
+(js2-msg "msg.no.equals.after.jsx.prop" "missing `=' after prop `%s'")
 (js2-msg "msg.no.value.after.jsx.prop" "missing value after prop `%s'")
 (js2-msg "msg.no.dots.in.prop.spread" "missing `...' in spread prop")
-(js2-msg "msg.no.rc.after.expr" "missing '}' after expression")
-(js2-msg "msg.empty.expr" "empty '{}' expression")
+(js2-msg "msg.no.rc.after.expr" "missing `}' after expression")
+(js2-msg "msg.empty.expr" "empty `{}' expression")
 
 
-(defface rjsx-tag
-  '((t . (:inherit font-lock-function-name-face)))
-  "`rjsx-mode' face used to highlight JSX tag names."
-  :group 'rjsx-mode)
-
-(defface rjsx-attr
-  '((t . (:inherit font-lock-variable-name-face)))
-  "`rjsx-mode' face used to highlight JSX attribute names."
-  :group 'rjsx-mode)
-
-
-;; TODO: define js2-printers for all of the structs
 (cl-defstruct (rjsx-node
                (:include js2-node (type rjsx-JSX))
                (:constructor nil)
@@ -300,8 +303,10 @@ Sets KID's parent to N."
   ;; Text nodes include whitespace
   (insert (rjsx-text-value node)))
 
+
+;;;; Recursive descent parsing
 (defvar rjsx-print-debug-message nil "If t will print out debug messages.")
-;(setq rjsx-print-debug-message t) (add-hook 'js2-jsx-mode-hook 'rjsx-mode)
+;(setq rjsx-print-debug-message t)
 (defmacro rjsx-maybe-message (&rest args)
   "If debug is enabled, call `message' with ARGS."
   `(when rjsx-print-debug-message
@@ -402,12 +407,12 @@ Returns a `js2-error-node' if we are in one or nil if not."
     (while (not (memql (js2-peek-token) loop-terminators))
       (rjsx-maybe-message "Starting loop. Next token type: %s\nToken pos: %s" (js2-peek-token) (js2-current-token-beg))
       (setq attr
-       (if (js2-match-token js2-LC)
-           (or (rjsx-check-for-empty-curlies t)
-               (prog1 (rjsx-parse-spread)
-                 (rjsx-maybe-message "Parsed spread")))
-         (rjsx-maybe-message "Parsing single attr")
-         (rjsx-parse-single-attr)))
+            (if (js2-match-token js2-LC)
+                (or (rjsx-check-for-empty-curlies t)
+                    (prog1 (rjsx-parse-spread)
+                      (rjsx-maybe-message "Parsed spread")))
+              (rjsx-maybe-message "Parsing single attr")
+              (rjsx-parse-single-attr)))
       (when (js2-error-node-p attr) (js2-get-token))
                                         ; TODO: We should make this conditional on
                                         ; `js2-recover-from-parse-errors'
