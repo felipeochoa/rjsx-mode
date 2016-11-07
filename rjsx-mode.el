@@ -360,9 +360,12 @@ This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
         ;; Now parse either a self closing tag or the end of the opening tag
         (rjsx-maybe-message "next type: `%s'" (js2-peek-token))
         (if (setq self-closing (js2-match-token js2-DIV))
-            ;; TODO: make sure there's no whitespace between / and >
-            (js2-must-match js2-GT "msg.no.gt.after.slash"
-                            (js2-node-pos pn) (- (js2-current-token-end) (js2-node-pos pn)))
+            (progn
+              (js2-record-text-property (js2-current-token-beg) (js2-current-token-end)
+                                        'rjsx-class 'self-closing-slash)
+              ;; TODO: How do we un-mark old slashes?
+              (js2-must-match js2-GT "msg.no.gt.after.slash"
+                                   (js2-node-pos pn) (- (js2-current-token-end) (js2-node-pos pn))))
           (js2-must-match js2-GT "msg.no.gt.in.opener" (js2-node-pos pn) (js2-node-len pn)))
         (rjsx-maybe-message "cleared opener closer, self-closing: %s" self-closing)
         (if self-closing
@@ -764,7 +767,7 @@ If N is 1 and KILLFLAG nil, checks to see if we're in a
 self-closing tag about to delete the slash.  If so, deletes the
 slash and inserts a matching end-tag."
   (interactive "p")
-  (if (or killflag (/= 1 n) (not (looking-at-p "/\\s-*>")) (not js2-mode-ast))
+  (if (or killflag (/= 1 n) (not (eq (get-char-property (point) 'rjsx-class) 'self-closing-slash)))
       (call-interactively 'delete-char)
     (let ((node (js2-node-at-point (point) t)))
       (while (and node (not (rjsx-node-p node)))

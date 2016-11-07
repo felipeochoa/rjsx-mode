@@ -633,7 +633,8 @@ Currently only forms with syntax errors are supported.
         (message "succeeded with %s" (prin1 contents))))))
 
 (ert-deftest rjsx-delete-normal ()
-  (let ((cases '(("let c = 3 " . "+ 4")
+  (let ((cases '(("let C = () => (\n  <WithRegex a={" . "/>/}></WithRegex>\n);")
+                 ("let c = 3 " . "+ 4")
                  ("if (n " . "=== undefined) return;")
                  ("(abc && def) " . "\n")
                  ("<Component><". "/Component"))))
