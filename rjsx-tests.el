@@ -574,6 +574,7 @@ Currently only forms with syntax errors are supported.
                  "let c = name => "
                  "let c = (\n  <div>\n    {value}\n    "
                  "let c = <div a={"
+                 "let c = [\n  <div />,\n  "
                  "let c = <div>{a && "
                  "let c = <div>{a || "
                  "let c = <div>{a ? "

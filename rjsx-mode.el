@@ -751,7 +751,7 @@ inserts `< />' and places the cursor inside the new tag."
     (if (/= n 1)
         (insert (make-string n "<"))
       (let ((inhibit-changing-match-data t))
-        (if (looking-back (rx (or "=" "(" "?" ":" ">" "}" "&" "|" "{"
+        (if (looking-back (rx (or "=" "(" "?" ":" ">" "}" "&" "|" "{" ","
                                   "return")
                               (zero-or-more (or "\n" space)))
                           (point-at-bol -2))
