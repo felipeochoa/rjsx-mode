@@ -51,9 +51,8 @@
           (should (string= (or reference code-string)
                            (buffer-substring-no-properties
                             (point-min) (point)))))
-        (when warnings-count
-          (should (= warnings-count
-                     (length (js2-ast-root-warnings ast)))))))))
+        (should (= (or warnings-count 0)
+                   (length (js2-ast-root-warnings ast))))))))
 
 (cl-defmacro js2-deftest-parse (name code-string &key bind syntax-error errors-count
                                      reference warnings-count)

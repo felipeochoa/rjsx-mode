@@ -24,7 +24,7 @@
   "<div></div>;")
 
 (js2-deftest-parse no-children-self-closing
-  "<div a=\"1\" b={123} {...props}/>;")
+  "<div a=\"1\" b={123} {...this.props}/>;")
 
 (js2-deftest-parse no-attr-xml-child
   "<div><span/></div>;")
@@ -33,13 +33,13 @@
   "<div>Hello world</div>;")
 
 (js2-deftest-parse no-attr-expr-child
-  "<div>{coolVar ? 'abc' : 'xyz'}</div>;")
+  "let coolVar = false;\n<div>{coolVar ? 'abc' : 'xyz'}</div>;")
 
 (js2-deftest-parse ultra-nested
-  "<div a={<span>{fall ? <b>Fell</b> : <img src=\"abc\"/>}</span>}></div>;")
+  "let fall = window.prompt('Fall?');\n<div a={<span>{fall ? <b>Fell</b> : <img src=\"s\"/>}</span>}></div>;")
 
 (js2-deftest-parse hidden-behind-and
-  "<div>{cond && <span/>}</div>;")
+  "let cond = true;\n<div>{cond && <span/>}</div>;")
 
 (js2-deftest-parse ns-tag
   "<xml:a/>;")
