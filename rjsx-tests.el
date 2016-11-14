@@ -60,19 +60,24 @@
   "<xml:a lmx-:attr=\"1\"/>;")
 
 (js2-deftest-parse member-tag
-  "<Module.Component/>;")
+  "<Module.Component/>;"
+  :bind (js2-highlight-external-variables))
 
 (js2-deftest-parse member-tag-many
-  "<Module.Component.Sub1.Sub2/>;")
+  "<Module.Component.Sub1.Sub2/>;"
+  :bind (js2-highlight-external-variables))
 
 (js2-deftest-parse empty-attr-self-closing
-  "<Component required/>;")
+  "<Component required/>;"
+  :bind (js2-highlight-external-variables))
 
 (js2-deftest-parse empty-attr-at-end
-  "<Component required>Hi</Component>;")
+  "<Component required>Hi</Component>;"
+  :bind (js2-highlight-external-variables))
 
 (js2-deftest-parse empty-attr-in-middle
-  "<Component required otherAttr=\"123\"/>;")
+  "<Component required otherAttr=\"123\"/>;"
+  :bind (js2-highlight-external-variables))
 
 (js2-deftest-parse complex
   "<form onSubmit={this.handleSubmit} className={className}>
@@ -83,6 +88,7 @@
          ref={c => this._topInput = c}/>
     {errors.name && <span className=\"error\">{errors.name}</span>}
     {   } Empty is OK as child, but warning is issued
+    <Undeclared value={123}/>
     {/* Node with comment gets no warning */}
     hello <div { } /> This should be a spread, so error
     <div empty={}  /> Empty attributes are not allowed
@@ -97,7 +103,7 @@
     }
 </form>"
   :errors-count 2
-  :warnings-count 1
+  :warnings-count 2
   :syntax-error "{ }")
 
 (js2-deftest-parse empty-child
@@ -112,6 +118,14 @@
 (js2-deftest-parse jsx-no-side-effects
   "function abc() {\n  <div/>;\n}"
   :warnings-count 1)
+
+(js2-deftest-parse undeclared-component
+  "const C = function() {  return <Component abc={123}/>;\n};"
+  :warnings-count 1)
+
+(js2-deftest-parse undeclared-component-lowercase-ok
+  "const C = function() {  return <component abc={123}/>;\n};"
+  :warnings-count 0)
 
 ;;; Now we test all of the malformed bits:
 

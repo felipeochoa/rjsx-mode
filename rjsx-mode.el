@@ -18,6 +18,7 @@
 ;;
 ;; - Highlighting JSX tag names and attributes (using the rjsx-tag and
 ;;   rjsx-attr faces)
+;; - Highlight undeclared JSX components
 ;; - Parsing the spread operator {...otherProps}
 ;; - Parsing && and || in child expressions {cond && <BigComponent/>}
 ;; - Parsing ternary expressions {toggle ? <ToggleOn /> : <ToggleOff />}
@@ -203,7 +204,7 @@ Sets KID's parent to N."
                (:constructor make-rjsx-identifier (&key (pos (js2-current-token-beg))
                                                            len namespace name)))
   (namespace nil)
-  name)
+  name)  ; js2-name-node
 
 (put 'cl-struct-rjsx-identifier 'js2-visitor 'js2-visit-none)
 (put 'cl-struct-rjsx-identifier 'js2-printer 'rjsx-identifier-print)
@@ -215,8 +216,8 @@ Sets KID's parent to N."
 (defun rjsx-identifier-full-name (n)
   "Return the string with N's fully-namespaced name, or just name if it's not namespaced."
   (if (rjsx-identifier-namespace n)
-      (format "%s:%s" (rjsx-identifier-namespace n) (rjsx-identifier-name n))
-    (rjsx-identifier-name n)))
+      (format "%s:%s" (rjsx-identifier-namespace n) (js2-name-node-name (rjsx-identifier-name n)))
+    (js2-name-node-name (rjsx-identifier-name n))))
 
 (cl-defstruct (rjsx-member
                (:include js2-node (type rjsx-JSX-MEMBER))
@@ -359,6 +360,14 @@ This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
         (js2-node-add-children pn name-n)
         (setq name-str (if (rjsx-member-p name-n) (rjsx-member-full-name name-n)
                          (rjsx-identifier-full-name name-n)))
+        (if js2-highlight-external-variables
+            (let ((name-node (rjsx-identifier-name
+                              (if (rjsx-member-p name-n)
+                                  (car (rjsx-member-idents name-n))
+                                name-n)))
+                  (case-fold-search nil))
+              (when (string-match-p "^[[:upper:]]" (js2-name-node-name name-node))
+                (js2-record-name-node name-node))))
         (rjsx-maybe-message "cleared tag name: '%s'" name-str)
         ;; Now parse the attributes
         (rjsx-parse-attributes pn)
@@ -589,6 +598,7 @@ argument ALLOW-NS is nil, does not allow namespaced names."
             (allow-colon allow-ns)
             (continue t)
             (prev-token-end (js2-current-token-end))
+            (name-start (js2-current-token-beg))
             matched-colon)
         (while (and continue
                     (or (and (memq (js2-peek-token) (list js2-SUB js2-ASSIGN_SUB))
@@ -600,7 +610,8 @@ argument ALLOW-NS is nil, does not allow namespaced names."
           (if (setq matched-colon (js2-match-token js2-COLON))
               (setf (rjsx-identifier-namespace pn) (apply #'concat (nreverse name-parts))
                     allow-colon nil
-                    name-parts (list))
+                    name-parts (list)
+                    name-start nil)
             (when (= (js2-get-token) js2-ASSIGN_SUB) ; Otherwise it's a js2-SUB
               (setf (js2-token-end (js2-current-token)) (1- (js2-current-token-end))
                     (js2-token-type (js2-current-token)) js2-SUB
@@ -612,7 +623,8 @@ argument ALLOW-NS is nil, does not allow namespaced names."
           (if (js2-match-token js2-NAME)
               (if (eq prev-token-end (js2-current-token-beg))
                   (progn (push (js2-current-token-string) name-parts)
-                         (setq prev-token-end (js2-current-token-end)))
+                         (setq prev-token-end (js2-current-token-end)
+                               name-start (or name-start (js2-current-token-beg))))
                 (js2-unget-token)
                 (setq continue nil))
             (when (= js2-COLON (js2-current-token-type))
@@ -622,7 +634,11 @@ argument ALLOW-NS is nil, does not allow namespaced names."
         (when face
           (js2-set-face beg (js2-current-token-end) face 'record))
         (setf (js2-node-len pn) (- (js2-current-token-end) beg)
-              (rjsx-identifier-name pn) (apply #'concat (nreverse name-parts)))
+              (rjsx-identifier-name pn) (if name-start
+                                            (make-js2-name-node :pos name-start
+                                                                :len (- (js2-current-token-end) name-start)
+                                                                :name (apply #'concat (nreverse name-parts)))
+                                          (make-js2-name-node :pos (js2-current-token-end) :len 0 :name "")))
         pn)
     (make-js2-error-node :len (js2-current-token-len))))
 
