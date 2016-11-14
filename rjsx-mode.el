@@ -73,15 +73,21 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
 
 ;;;; Parser constants struct definitions
 
-;;Token types for XML nodes. Never returned by scanner
-(defvar rjsx-JSX            (+ 1 js2-num-tokens))
-(defvar rjsx-JSX-CLOSE      (+ 2 js2-num-tokens))
-(defvar rjsx-JSX-IDENT      (+ 3 js2-num-tokens))
-(defvar rjsx-JSX-MEMBER     (+ 4 js2-num-tokens))
-(defvar rjsx-JSX-ATTR       (+ 5 js2-num-tokens))
-(defvar rjsx-JSX-SPREAD     (+ 6 js2-num-tokens))
-(defvar rjsx-JSX-TEXT       (+ 7 js2-num-tokens))
-(defvar rjsx-JSX-EXPRESSION (+ 8 js2-num-tokens))
+;; Token types for XML nodes. We need to re-use some unused values to
+;; not mess up the vectors that js2 has set up
+(defvar rjsx-JSX            js2-ENUM_INIT_KEYS)
+(defvar rjsx-JSX-CLOSE      js2-ENUM_INIT_VALUES)
+(defvar rjsx-JSX-IDENT      js2-ENUM_INIT_ARRAY)
+(defvar rjsx-JSX-MEMBER     js2-ENUM_NEXT)
+(defvar rjsx-JSX-ATTR       js2-ENUM_ID)
+(defvar rjsx-JSX-SPREAD     js2-REF_NS_MEMBER)
+(defvar rjsx-JSX-TEXT       js2-ESCXMLTEXT)
+(defvar rjsx-JSX-EXPRESSION js2-ESCXMLATTR)
+
+(dolist (sym '(rjsx-JSX rjsx-JSX-CLOSE rjsx-JSX-IDENT rjsx-JSX-MEMBER rjsx-JSX-ATTR
+                        rjsx-JSX-SPREAD rjsx-JSX-TEXT rjsx-JSX-EXPRESSION))
+  (aset js2-token-names (symbol-value sym) (downcase (substring (symbol-name sym) 5)))
+  (puthash sym (symbol-value sym) js2-token-codes))
 
 (js2-msg "msg.bad.jsx.ident" "invalid JSX identifier")
 (js2-msg "msg.invalid.jsx.string" "invalid JSX string (cannot contain delimiter in string body)")

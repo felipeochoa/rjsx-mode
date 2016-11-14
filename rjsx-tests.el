@@ -100,6 +100,10 @@
   :warnings-count 0
   :reference "<div>{}</div>;")
 
+(js2-deftest-parse jsx-no-side-effects
+  "function abc() {\n  <div/>;\n}"
+  :warnings-count 1)
+
 ;;; Now we test all of the malformed bits:
 
 (defun jsx-test--forms (forms)
