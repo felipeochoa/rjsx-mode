@@ -96,7 +96,6 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
 (js2-msg "msg.no.gt.in.closer" "missing `>' in closing tag")
 (js2-msg "msg.no.gt.after.slash" "missing `>' after `/' in self-closing tag")
 (js2-msg "msg.no.rc.after.spread" "missing `}' after spread-prop")
-(js2-msg "msg.no.equals.after.jsx.prop" "missing `=' after prop `%s'")
 (js2-msg "msg.no.value.after.jsx.prop" "missing value after prop `%s'")
 (js2-msg "msg.no.dots.in.prop.spread" "missing `...' in spread prop")
 (js2-msg "msg.no.rc.after.expr" "missing `}' after expression")
@@ -256,8 +255,9 @@ Sets KID's parent to N."
 (defun rjsx-attr-print (node indent-level)
   "Print the `rjsx-attr' NODE at INDENT-LEVEL."
   (js2-print-ast (rjsx-attr-name node) indent-level)
-  (insert "=")
-  (js2-print-ast (rjsx-attr-value node) 0))
+  (unless (js2-empty-expr-node-p (rjsx-attr-value node))
+    (insert "=")
+    (js2-print-ast (rjsx-attr-value node) 0)))
 
 (cl-defstruct (rjsx-spread
                (:include js2-node (type rjsx-JSX-SPREAD))
@@ -515,9 +515,7 @@ Assumes the current token is a '{'."
                 (js2-report-error "msg.no.value.after.jsx.prop" (rjsx-identifier-full-name name)
                                   beg (- (js2-current-token-end) beg))
                 (setq value (make-js2-error-node :pos beg :len (js2-current-token-len))))))
-        (js2-report-error "msg.no.equals.after.jsx.prop" (rjsx-identifier-full-name name)
-                          beg (- (js2-current-token-end) beg))
-        (setq value (make-js2-error-node :pos beg :len (- (js2-current-token-end) beg))))
+        (setq value (make-js2-empty-expr-node :pos (js2-current-token-end) :len 0)))
       (rjsx-maybe-message "value type: `%s'" (js2-node-type value))
       (setf (rjsx-attr-value pn) value)
       (setf (js2-node-len pn) (- (js2-node-end value) (js2-node-pos pn)))

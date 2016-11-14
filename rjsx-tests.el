@@ -65,6 +65,15 @@
 (js2-deftest-parse member-tag-many
   "<Module.Component.Sub1.Sub2/>;")
 
+(js2-deftest-parse empty-attr-self-closing
+  "<Component required/>;")
+
+(js2-deftest-parse empty-attr-at-end
+  "<Component required>Hi</Component>;")
+
+(js2-deftest-parse empty-attr-in-middle
+  "<Component required otherAttr=\"123\"/>;")
+
 (js2-deftest-parse complex
   "<form onSubmit={this.handleSubmit} className={className}>
   <input type=\"text\"
@@ -211,17 +220,14 @@ Currently only forms with syntax errors are supported.
 
 (js2-deftest-parse invalid-tag-member-and-ns-self-closing
   "<xml:Component.Child/>"
-  :errors-count 2 ; tag parsed as xml:Component, then erratic ., then Child as attr missing value
   :syntax-error ".") ;; TODO: report the error over the entire tag
 
 (js2-deftest-parse invalid-ns-tag-with-double-dashes
   "<xml-lmx--m:a-b-c/>;"
-  :errors-count 2 ; tag parsed as xml-lmx, then erratic decrement, then missing attr value
   :syntax-error "--") ;; TODO: report the error over the entire tag
 
 (js2-deftest-parse invalid-tag-whitespace-before-dash
   "<div -attr/>"
-  :errors-count 2 ; spurious dash followed by missing value
   :syntax-error "-")
 
 (js2-deftest-parse missing-closing-lt-self-closing
@@ -268,56 +274,13 @@ Currently only forms with syntax errors are supported.
 
 ;; Malformed attributes have a number of permutations:
 ;;
-;; A/ Missing equals sign, missing value, missing right curly, bad expression
+;; A/ Missing value, missing right curly, bad expression
 ;; B/ Before another attribute (spread vs expr vs string) or
 ;;    at the end of the tag (self-closing or not)
 ;; C/ No dashes in its name, ends in a dash, dashes but not at the end
 ;; D/ With a namespaced name or not
 ;;
-;; Combinatorial explosion! 4 * 5 * 3 * 2 = 120!
-
-;; Here are all the missing equals sign tests:
-(jsx-deftest attr-missing-equals-sign-no-dashes
-  ("<div attr {...attr2}/>" "attr")
-  ("<div attr/>" "attr")
-  ("<div attr></div>" "attr")
-  ("<div attr attr2={123}/>" "attr")
-  ("<div attr attr2=\"123\"/>" "attr"))
-
-(jsx-deftest attr-missing-equals-sign-ends-in-dash
-  ("<div attr- attr2=\"123\"/>" "attr-")
-  ("<div attr- attr2={123}/>" "attr-")
-  ("<div attr- {...attr2}/>" "attr-")
-  ("<div attr-/>" "attr-")
-  ("<div attr-></div>" "attr-"))
-
-(jsx-deftest attr-missing-equals-sign-interior-dashes
-  ("<div attr-name {...attr2}/>" "attr-name")
-  ("<div attr-name/>" "attr-name")
-  ("<div attr-name></div>" "attr-name")
-  ("<div attr-name attr2={123}/>" "attr-name")
-  ("<div attr-name attr2=\"123\"/>" "attr-name"))
-
-(jsx-deftest attr-missing-equals-sign-no-dashes-namespaced
-  ("<div ns:attr {...attr2}/>" "ns:attr")
-  ("<div ns:attr/>" "ns:attr")
-  ("<div ns:attr></div>" "ns:attr")
-  ("<div ns:attr attr2={123}/>" "ns:attr")
-  ("<div ns:attr attr2=\"123\"/>" "ns:attr"))
-
-(jsx-deftest attr-missing-equals-sign-ends-in-dash-namespaced
-  ("<div ns:attr- {...attr2}/>" "ns:attr-")
-  ("<div ns:attr-/>" "ns:attr-")
-  ("<div ns:attr-></div>" "ns:attr-")
-  ("<div ns:attr- attr2={123}/>" "ns:attr-")
-  ("<div ns:attr- attr2=\"123\"/>" "ns:attr-"))
-
-(jsx-deftest attr-missing-equals-sign-interior-dashes-namespaced
-  ("<div ns:attr-name {...attr2}/>" "ns:attr-name")
-  ("<div ns:attr-name/>" "ns:attr-name")
-  ("<div ns:attr-name></div>" "ns:attr-name")
-  ("<div ns:attr-name attr2={123}/>" "ns:attr-name")
-  ("<div ns:attr-name attr2=\"123\"/>" "ns:attr-name"))
+;; Combinatorial explosion! 3 * 5 * 3 * 2 = 90!
 
 ;; Here are all the missing values sign tests:
 (jsx-deftest attr-missing-value-no-dashes
