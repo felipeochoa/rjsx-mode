@@ -788,7 +788,7 @@ self-closing tag about to delete the slash.  If so, deletes the
 slash and inserts a matching end-tag."
   (interactive "p")
   (if (or killflag (/= 1 n) (not (eq (get-char-property (point) 'rjsx-class) 'self-closing-slash)))
-      (call-interactively 'delete-char)
+      (call-interactively 'delete-forward-char)
     (let ((node (js2-node-at-point (point) t)))
       (while (and node (not (rjsx-node-p node)))
         (setq node (js2-node-parent node)))
