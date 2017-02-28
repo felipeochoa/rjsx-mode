@@ -66,7 +66,7 @@ parse tree gain access to the JSX structure.
 Please submit any bugs or feature requests on the GitHub tracker.
 
 **Note**: This mode does not add any indentation improvements to the one built
-into `js-mode`. Pleae report all identation bugs there
+into `js-mode`. Please report all identation bugs there
 
 
 ## License
