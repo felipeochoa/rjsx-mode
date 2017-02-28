@@ -49,6 +49,15 @@ The result is you can do the following:
 
 <img src="key-demo.gif" width="200" alt="Quickly and easily add new components">
 
+If you don't like this behavior, you can disable it by adding the following to
+your init file:
+
+```elisp
+(with-eval-after-load 'rjsx
+  (define-key rjsx-mode-map "<" nil)
+  (define-key rjsx-mode-map (kbd "C-d") nil))
+```
+
 Additionally, since `rjsx-mode` extends the `js2` AST, utilities using the
 parse tree gain access to the JSX structure.
 
