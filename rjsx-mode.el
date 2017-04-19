@@ -759,6 +759,13 @@ closing tag was parsed."
           (throw 'rjsx-eof-while-parsing t))
          (t (js2-add-to-string c)))))))
 
+(defun rjsx--tag-at-point ()
+  "Return the JSX tag at point, if any, or nil."
+  (let ((node (js2-node-at-point (point) t)))
+    (while (and node (not (rjsx-node-p node)))
+      (setq node (js2-node-parent node)))
+    node))
+
 
 ;;;; Interactive commands and keybindings
 (defun rjsx-electric-lt (n)
@@ -791,9 +798,7 @@ slash and inserts a matching end-tag."
       (if (called-interactively-p 'any)
 	  (call-interactively 'delete-forward-char)
 	(delete-char n killflag))
-    (let ((node (js2-node-at-point (point) t)))
-      (while (and node (not (rjsx-node-p node)))
-        (setq node (js2-node-parent node)))
+    (let ((node (rjsx--tag-at-point)))
       (if node
           (progn
             (delete-char 1)

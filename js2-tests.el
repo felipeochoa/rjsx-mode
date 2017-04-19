@@ -13,6 +13,23 @@
 (require 'js2-mode)
 (require 'cl-lib)
 
+(defvar rjsx--debug-indent 0)
+
+(defun rjsx--debug-tree-visitor (node endp)
+  "Inserts a sexp with the JS2 ast into the current buffer.
+Debugging routine. NODE and ENDP are from `js2-visit-ast'."
+  (if endp
+      (progn (insert ")") (cl-decf rjsx--debug-indent))
+    (insert "\n" (make-string (* 2 rjsx--debug-indent) ?\ ))
+    (insert "(" (js2-tt-name (js2-node-type node)))
+    (cl-incf rjsx--debug-indent)))
+
+(defun rjsx--debug-tree (ast)
+  "Return a string with a sexp of the node names in AST."
+  (with-temp-buffer
+    (js2-visit-ast ast #'rjsx--debug-tree-visitor)
+    (buffer-substring-no-properties (point-min) (point-max))))
+
 (defmacro js2-deftest (name buffer-contents &rest body)
   (declare (indent defun))
   `(ert-deftest ,(intern (format "js2-%s" name)) ()
