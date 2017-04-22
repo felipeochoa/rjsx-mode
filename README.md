@@ -28,14 +28,6 @@ Alternatively, you can download `rjsx-mode.el` from this repository and use
 `js2-mode` does not include a JSX parser, but rather an E4X parser, which
 means it gets confused with certain JSX constructs. This mode extends the
 `js2` parser to support all JSX constructs and proper syntax highlighting.
-Some features that this mode adds to `js2`:
-
-* Highlighting JSX tag names and attributes (using the `rjsx-tag` and
-  `rjsx-attr` faces)
-* Parsing the spread operator `{...otherProps}`
-* `&&` and `||` in child expressions `<div>{cond && <BigComponent/>}</div>`
-* Ternary expressions `<div>{toggle ? <ToggleOn /> : <ToggleOff
-  />}</div>`
 
 `rjsx-mode` adds some electrcity to `<` and `C-d` to make adding new
 JSX elements less repetitive:
@@ -48,6 +40,15 @@ JSX elements less repetitive:
 The result is you can do the following:
 
 <img src="key-demo.gif" width="200" alt="Quickly and easily add new components">
+
+Some features that this mode adds to `js2`:
+
+* Highlighting JSX tag names and attributes (using the `rjsx-tag` and
+  `rjsx-attr` faces)
+* Parsing the spread operator `{...otherProps}`
+* `&&` and `||` in child expressions `<div>{cond && <BigComponent/>}</div>`
+* Ternary expressions `<div>{toggle ? <ToggleOn /> : <ToggleOff
+  />}</div>`
 
 If you don't like this behavior, you can disable it by adding the following to
 your init file:
