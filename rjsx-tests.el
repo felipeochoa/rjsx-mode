@@ -716,4 +716,27 @@ Currently only forms with syntax errors are supported.
             (t
              (should (eq nil tag))))))))))
 
+(ert-deftest rjsx-rename-tag-at-point ()
+  (let ((cases '(("let c = (\n " " <div>\n    <Component a=\"123\"/>\n  </div>)"
+                  "let c = (\n  <div>\n    <Component a=\"123\"/>\n  </div>)")
+                 ("let c = (\n  <div>\n    <Compo" "nent a=\"123\"/>\n  </div>)"
+                  "let c = (\n  <div>\n    <NewName a=\"123\"/>\n  </div>)")
+                 ("let c = (\n  <Component {" "...props}/>\n)"
+                  "let c = (\n  <NewName {...props}/>\n)")
+                 ("let c = <div a={<Comp" "onent/>}/>"
+                  "let c = <div a={<NewName/>}/>")
+                 ("let c = <div>{a && <Component a={123}/" ">}</div>"
+                  "let c = <div>{a && <NewName a={123}/>}</div>"))))
+    (ert-with-test-buffer (:name 'origin)
+      (dolist (case cases)
+        (erase-buffer)
+        (cl-destructuring-bind (pre post exp) case
+          (insert pre)
+          (save-excursion (insert post))
+          (js2-mode--and-parse)
+          (rjsx-rename-tag-at-point "NewName")
+          (message (concat pre "|" post))
+          (should (string= (buffer-substring-no-properties (point-min) (point-max)) exp)))))))
+
+
 ;;; rjsx-tests.el ends here

@@ -809,6 +809,22 @@ slash and inserts a matching end-tag."
 
 (define-key rjsx-mode-map (kbd "C-d") 'rjsx-delete-creates-full-tag)
 
+(defun rjsx-rename-tag-at-point (new-name)
+  "Prompt for a new name and modify the tag at point.
+NEW-NAME is the name to give the tag."
+  (interactive "sNew tag name: ")
+  (if-let ((tag (rjsx--tag-at-point)))
+      (let* ((head (rjsx-node-name tag))
+             (tail (when-let ((closer (rjsx-node-closing-tag tag))) (rjsx-closing-tag-name closer)))
+             beg end)
+        (dolist (part (if tail (list tail head) (list head)))
+          (setq beg (js2-node-abs-pos part)
+                end (+ beg (js2-node-len part)))
+          (delete-region beg end)
+          (save-excursion (goto-char beg) (insert new-name)))
+        (js2-reparse))
+    (message "No JSX tag found at point")))
+
 
 (provide 'rjsx-mode)
 ;;; rjsx-mode.el ends here
