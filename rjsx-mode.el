@@ -813,10 +813,10 @@ slash and inserts a matching end-tag."
   "Prompt for a new name and modify the tag at point.
 NEW-NAME is the name to give the tag."
   (interactive "sNew tag name: ")
-  (let ((tag (rjsx--tag-at-point)))
+  (let ((tag (rjsx--tag-at-point)) closer)
     (if tag
         (let* ((head (rjsx-node-name tag))
-               (tail (when-let ((closer (rjsx-node-closing-tag tag))) (rjsx-closing-tag-name closer)))
+               (tail (when (setq closer (rjsx-node-closing-tag tag)) (rjsx-closing-tag-name closer)))
                beg end)
           (dolist (part (if tail (list tail head) (list head)))
             (setq beg (js2-node-abs-pos part)
