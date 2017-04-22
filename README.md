@@ -41,6 +41,8 @@ The result is you can do the following:
 
 <img src="key-demo.gif" width="200" alt="Quickly and easily add new components">
 
+* `C-c C-r` lets you rename the enclosing tag
+
 Some features that this mode adds to `js2`:
 
 * Highlighting JSX tag names and attributes (using the `rjsx-tag` and

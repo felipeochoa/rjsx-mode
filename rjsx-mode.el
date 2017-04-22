@@ -825,6 +825,8 @@ NEW-NAME is the name to give the tag."
         (js2-reparse))
     (message "No JSX tag found at point")))
 
+(define-key rjsx-mode-map (kbd "C-c C-r") 'rjsx-rename-tag-at-point)
+
 
 (provide 'rjsx-mode)
 ;;; rjsx-mode.el ends here
