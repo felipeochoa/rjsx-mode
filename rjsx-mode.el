@@ -4,7 +4,7 @@
 
 ;; Author: Felipe Ochoa <felipe@fov.space>
 ;; URL: https://github.com/felipeochoa/rjsx-mode/
-;; Package-Requires: ((emacs "24.4") (js2-mode "20160623"))
+;; Package-Requires: ((emacs "24.4") (js2-mode "20170504"))
 ;; Version: 1.1
 ;; Keywords: languages
 
@@ -118,8 +118,8 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
   closing-tag) ; AST node with the tag closer
 
 
-(put 'cl-struct-rjsx-node 'js2-visitor 'rjsx-node-visit)
-(put 'cl-struct-rjsx-node 'js2-printer 'rjsx-node-print)
+(js2--struct-put 'rjsx-node 'js2-visitor 'rjsx-node-visit)
+(js2--struct-put 'rjsx-node 'js2-printer 'rjsx-node-print)
 (defun rjsx-node-visit (ast callback)
   "Visit the `rjsx-node' children of AST, invoking CALLBACK on them."
   (js2-visit-ast (rjsx-node-name ast) callback)
@@ -179,8 +179,8 @@ Sets KID's parent to N."
                (:constructor make-rjsx-closing-tag (&key pos len name)))
   name) ; A rjsx-identifier or rjsx-member node
 
-(put 'cl-struct-rjsx-closing-tag 'js2-visitor 'rjsx-closing-tag-visit)
-(put 'cl-struct-rjsx-closing-tag 'js2-printer 'rjsx-closing-tag-print)
+(js2--struct-put 'rjsx-closing-tag 'js2-visitor 'rjsx-closing-tag-visit)
+(js2--struct-put 'rjsx-closing-tag 'js2-printer 'rjsx-closing-tag-print)
 
 (defun rjsx-closing-tag-visit (ast callback)
   "Visit the `rjsx-closing-tag' children of AST, invoking CALLBACK on them."
@@ -206,8 +206,8 @@ Sets KID's parent to N."
   (namespace nil)
   name)  ; js2-name-node
 
-(put 'cl-struct-rjsx-identifier 'js2-visitor 'js2-visit-none)
-(put 'cl-struct-rjsx-identifier 'js2-printer 'rjsx-identifier-print)
+(js2--struct-put 'rjsx-identifier 'js2-visitor 'js2-visit-none)
+(js2--struct-put 'rjsx-identifier 'js2-printer 'rjsx-identifier-print)
 
 (defun rjsx-identifier-print (node indent-level)
   "Print the `rjsx-identifier' NODE at INDENT-LEVEL."
@@ -226,8 +226,8 @@ Sets KID's parent to N."
   dots-pos  ; List of positions of each dot
   idents)   ; List of rjsx-identifier nodes
 
-(put 'cl-struct-rjsx-member 'js2-visitor 'js2-visit-none)
-(put 'cl-struct-rjsx-member 'js2-printer 'rjsx-member-print)
+(js2--struct-put 'rjsx-member 'js2-visitor 'js2-visit-none)
+(js2--struct-put 'rjsx-member 'js2-printer 'rjsx-member-print)
 
 (defun rjsx-member-print (node indent-level)
   "Print the `rjsx-member' NODE at INDENT-LEVEL."
@@ -245,8 +245,8 @@ Sets KID's parent to N."
   name    ; a rjsx-identifier
   value)  ; a js2-expression
 
-(put 'cl-struct-rjsx-attr 'js2-visitor 'rjsx-attr-visit)
-(put 'cl-struct-rjsx-attr 'js2-printer 'rjsx-attr-print)
+(js2--struct-put 'rjsx-attr 'js2-visitor 'rjsx-attr-visit)
+(js2--struct-put 'rjsx-attr 'js2-printer 'rjsx-attr-print)
 
 (defun rjsx-attr-visit (ast callback)
   "Visit the `rjsx-attr' children of AST, invoking CALLBACK on them."
@@ -266,8 +266,8 @@ Sets KID's parent to N."
                (:constructor make-rjsx-spread (&key pos len expr)))
   expr)  ; a js2-expression
 
-(put 'cl-struct-rjsx-spread 'js2-visitor 'rjsx-spread-visit)
-(put 'cl-struct-rjsx-spread 'js2-printer 'rjsx-spread-print)
+(js2--struct-put 'rjsx-spread 'js2-visitor 'rjsx-spread-visit)
+(js2--struct-put 'rjsx-spread 'js2-printer 'rjsx-spread-print)
 
 (defun rjsx-spread-visit (ast callback)
   "Visit the `rjsx-spread' children of AST, invoking CALLBACK on them."
@@ -285,8 +285,8 @@ Sets KID's parent to N."
                (:constructor make-rjsx-wrapped-expr (&key pos len child)))
   child)
 
-(put 'cl-struct-rjsx-wrapped-expr 'js2-visitor 'rjsx-wrapped-expr-visit)
-(put 'cl-struct-rjsx-wrapped-expr 'js2-printer 'rjsx-wrapped-expr-print)
+(js2--struct-put 'rjsx-wrapped-expr 'js2-visitor 'rjsx-wrapped-expr-visit)
+(js2--struct-put 'rjsx-wrapped-expr 'js2-printer 'rjsx-wrapped-expr-print)
 
 (defun rjsx-wrapped-expr-visit (ast callback)
   "Visit the `rjsx-wrapped-expr' child of AST, invoking CALLBACK on them."
@@ -306,8 +306,8 @@ Sets KID's parent to N."
                                                      value)))
   value)  ; a string
 
-(put 'cl-struct-rjsx-text 'js2-visitor 'js2-visit-none)
-(put 'cl-struct-rjsx-text 'js2-printer 'rjsx-text-print)
+(js2--struct-put 'rjsx-text 'js2-visitor 'js2-visit-none)
+(js2--struct-put 'rjsx-text 'js2-printer 'rjsx-text-print)
 
 (defun rjsx-text-print (node _indent-level)
   "Print the `rjsx-text' NODE at INDENT-LEVEL."
