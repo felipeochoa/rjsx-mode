@@ -127,6 +127,15 @@
   "const C = function() {  return <component abc={123}/>;\n};"
   :warnings-count 0)
 
+(ert-deftest rjsx-syntax-table-in-text ()
+  "Ensure JSX text sequences use the default syntax table."
+  (ert-with-test-buffer (:name 'rjsx)
+    (insert "const d = <div>{/* this is a comment */}This is")
+    (save-excursion (insert "' text{ anExpression }</div>;"))
+    (setq parse-sexp-lookup-properties t)
+    (js2-mode--and-parse)
+    (should (eq (syntax-class (syntax-after (point))) (syntax-class (string-to-syntax "."))))))
+
 ;;; Now we test all of the malformed bits:
 
 (defun jsx-test--forms (forms)

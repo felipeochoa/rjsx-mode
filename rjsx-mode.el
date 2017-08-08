@@ -692,6 +692,8 @@ and {}-bracketed expressions.  Return the parsed child."
 
      ((= tt rjsx-JSX-TEXT)
       (rjsx-maybe-message "text node: '%s'" (js2-current-token-string))
+      (js2-record-text-property (js2-current-token-beg) (js2-current-token-end)
+                                'syntax-table (standard-syntax-table))
       (make-rjsx-text :value (js2-current-token-string)))
 
      ((= tt js2-ERROR)
