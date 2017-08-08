@@ -71,6 +71,11 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
   "`rjsx-mode' face used to highlight JSX attribute names."
   :group 'rjsx-mode)
 
+(defface rjsx-text
+  '((t . (:inherit font-lock-string-face)))
+  "`rjsx-mode' face used to highlight JSX text."
+  :group 'rjsx-mode)
+
 
 ;;;; Parser constants struct definitions
 
@@ -692,6 +697,7 @@ and {}-bracketed expressions.  Return the parsed child."
 
      ((= tt rjsx-JSX-TEXT)
       (rjsx-maybe-message "text node: '%s'" (js2-current-token-string))
+      (js2-set-face (js2-current-token-beg) (js2-current-token-end) 'rjsx-text 'record)
       (js2-record-text-property (js2-current-token-beg) (js2-current-token-end)
                                 'syntax-table (standard-syntax-table))
       (make-rjsx-text :value (js2-current-token-string)))
