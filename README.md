@@ -56,7 +56,7 @@ If you don't like this behavior, you can disable it by adding the following to
 your init file:
 
 ```elisp
-(with-eval-after-load 'rjsx
+(with-eval-after-load 'rjsx-mode
   (define-key rjsx-mode-map "<" nil)
   (define-key rjsx-mode-map (kbd "C-d") nil))
 ```
