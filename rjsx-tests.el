@@ -747,5 +747,16 @@ Currently only forms with syntax errors are supported.
           (message (concat pre "|" post))
           (should (string= (buffer-substring-no-properties (point-min) (point-max)) exp)))))))
 
+(ert-deftest rjsx-auto-reparse ()
+  (ert-with-test-buffer (:name 'rjsx)
+    (erase-buffer)
+    (rjsx-mode)
+    (insert "let c = <div>{a && <Component a={123}/")
+    (save-excursion (insert ">}</div>"))
+    (setq js2-mode-ast nil)
+    (rjsx--tag-at-point) ;; Should not error
+    (setq js2-mode-ast nil)
+    (let ((rjsx-max-size-for-frequent-reparse (1- (point-max))))
+      (should-error (rjsx--tag-at-point)))))
 
 ;;; rjsx-tests.el ends here
