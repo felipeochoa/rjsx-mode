@@ -892,6 +892,22 @@ NEW-NAME is the name to give the tag."
 
 (define-key rjsx-mode-map (kbd "C-c C-r") 'rjsx-rename-tag-at-point)
 
+(defun rjsx-vanish-tag-at-point ()
+  "Splice the inner-most tag's contents into its parent."
+  (interactive)
+  (let ((tag (rjsx--tag-at-point)))
+    (if tag
+        (let ((first-child (car (rjsx-node-kids tag)))
+              (last-child (car (last (rjsx-node-kids tag)))))
+          (if (null first-child)
+              (delete-region (js2-node-abs-pos tag) (+ beg (js2-node-len tag)))
+            (delete-region (js2-node-abs-end last-child) (js2-node-abs-end tag))
+            (delete-region (js2-node-abs-pos tag) (js2-node-abs-pos first-child)))
+          (js2-reparse))
+      (message "No JSX tag found at point"))))
+
+(define-key rjsx-mode-map (kbd "C-c C-v") 'rjsx-vanish-tag-at-point)
+
 
 (provide 'rjsx-mode)
 ;;; rjsx-mode.el ends here
