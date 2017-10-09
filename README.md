@@ -34,8 +34,9 @@ JSX elements less repetitive:
 
 * `<` inserts `</>` whenever it would start a new JSX node (and simply
   inserts `<` otherwise)
-* `C-d` when deleting the slash in a self-closing tag automatically
-  inserts a closing tag and places point inside the element
+* `>` or `C-d` right before the slash in a self-closing tag
+  automatically inserts a closing tag and places point inside the
+  element
 
 The result is you can do the following:
 
@@ -58,7 +59,8 @@ your init file:
 ```elisp
 (with-eval-after-load 'rjsx-mode
   (define-key rjsx-mode-map "<" nil)
-  (define-key rjsx-mode-map (kbd "C-d") nil))
+  (define-key rjsx-mode-map (kbd "C-d") nil)
+  (define-key rjsx-mode-map ">" nil))
 ```
 
 Additionally, since `rjsx-mode` extends the `js2` AST, utilities using the
