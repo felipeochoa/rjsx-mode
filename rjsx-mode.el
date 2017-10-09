@@ -795,11 +795,11 @@ parse tree is up to date."
 
 ;;;; Interactive commands and keybindings
 (defun rjsx-electric-lt (n)
-    "Insert a context-sensitive less-than sign.
+  "Insert a context-sensitive less-than sign.
 Optional prefix argument N indicates how many signs to insert.
 If N is greater than one, no special handling takes place.
 Otherwise, if the less-than sign would start a JSX block, it
-inserts `< />' and places the cursor inside the new tag."
+inserts `</>' and places the cursor inside the new tag."
     (interactive "p")
     (if (/= n 1)
         (insert (make-string n "<"))
