@@ -814,6 +814,30 @@ inserts `< />' and places the cursor inside the new tag."
 
 (define-key rjsx-mode-map "<" 'rjsx-electric-lt)
 
+(defun rjsx-electric-gt (n)
+  "Insert a context-sensitive greater-than sign.
+Optional prefix argument N indicates how many signs to insert.
+If N is greater than one, no special handling takes place.
+Otherwise, if point is in a self-closing JSX tag just before the
+slash, it creates a matching end-tag and places point just inside
+the tags."
+  (interactive "p")
+  (if (or (/= n 1)
+          (not (eq (get-char-property (point) 'rjsx-class) 'self-closing-slash)))
+      (if (called-interactively-p 'any)
+          (call-interactively 'self-insert-command)
+        (insert (make-string n ?>)))
+    (let ((node (rjsx--tag-at-point)))
+      (if node
+          (progn
+            (delete-char 1)
+            (search-forward ">")
+            (save-excursion
+              (insert "</" (rjsx-node-opening-tag-name node) ">")))
+        (insert (make-string n ?>))))))
+
+(define-key rjsx-mode-map ">" 'rjsx-electric-gt)
+
 (defun rjsx-delete-creates-full-tag (n &optional killflag)
   "N and KILLFLAG are as in `delete-char'.
 If N is 1 and KILLFLAG nil, checks to see if we're in a
