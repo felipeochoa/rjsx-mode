@@ -802,7 +802,7 @@ Otherwise, if the less-than sign would start a JSX block, it
 inserts `</>' and places the cursor inside the new tag."
     (interactive "p")
     (if (/= n 1)
-        (insert (make-string n "<"))
+        (insert (make-string n ?<))
       (let ((inhibit-changing-match-data t))
         (if (looking-back (rx (or "=" "(" "?" ":" ">" "}" "&" "|" "{" ","
                                   "return")
@@ -824,9 +824,7 @@ the tags."
   (interactive "p")
   (if (or (/= n 1)
           (not (eq (get-char-property (point) 'rjsx-class) 'self-closing-slash)))
-      (if (called-interactively-p 'any)
-          (call-interactively 'self-insert-command)
-        (insert (make-string n ?>)))
+      (insert (make-string n ?>))
     (let ((node (rjsx--tag-at-point)))
       (if node
           (progn

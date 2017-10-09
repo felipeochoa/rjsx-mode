@@ -594,6 +594,29 @@ Currently only forms with syntax errors are supported.
                          ""))
         (erase-buffer)))))
 
+(ert-deftest rjsx-electric-lt-prefix-arg ()
+  (let ((cases '("let c = "
+                 "let c = (\n  "
+                 "let c = (\n  <div>\n    "
+                 "let c = name => "
+                 "let c = (\n  <div>\n    {value}\n    "
+                 "let c = <div a={"
+                 "let c = [\n  <div />,\n  "
+                 "let c = <div>{a && "
+                 "let c = <div>{a || "
+                 "let c = <div>{a ? "
+                 "let c = <div>{a ? null :"
+                 "return ")))
+    (ert-with-test-buffer (:name 'origin)
+      (dolist (contents cases)
+        (insert contents)
+        (rjsx-electric-lt 3)
+        (should (string= (buffer-substring-no-properties (point-min) (point))
+                         (concat contents "<<<")))
+        (should (string= (buffer-substring-no-properties (point) (point-max))
+                         ""))
+        (erase-buffer)))))
+
 (ert-deftest rjsx-electric-gt ()
   (let ((cases '("let c = (\n  <div>\n    <Component a=\"123\"/>\n  </div>)"
                  "let c = <Component/>"
@@ -640,6 +663,35 @@ Currently only forms with syntax errors are supported.
         (should (string= (buffer-substring-no-properties (point) (point-max))
                          (cdr contents)))
         (erase-buffer)))))
+
+(ert-deftest rjsx-electric-gt-prefix-arg ()
+  (let ((cases '("let c = (\n  <div>\n    <Component a=\"123\"/>\n  </div>)"
+                 "let c = <Component/>"
+                 "let c = (\n  <Component {...props}/>\n)"
+                 "let c = name => <Component b='123'/>"
+                 "let c = (\n  <div>\n    {value}\n    <Component/>\n  </div>)"
+                 "let c = <div a={<Component/>}/>"
+                 "let c = <div>{a && <Component a={123}/>}</div>"
+                 "let c = <div>{a || <Component/>}</div>"
+                 "let c = <div>{a ? <Component/> : null}</div>"
+                 "let c = <div>{a ? null : <Component/>}</div>"
+                 "return <Component/>")))
+    (ert-with-test-buffer (:name 'origin)
+      (dolist (contents cases)
+        (insert contents)
+        (goto-char 0)
+        (search-forward "/>")
+        (backward-char 2)
+        (js2-mode--and-parse)
+        (let ((start-point (point)))
+          (rjsx-electric-gt 2)
+          (should (= (+ 2 start-point) (point)))
+          (should (string= (buffer-substring-no-properties (point-min) (point))
+                           (concat (substring contents 0 (1- start-point)) ">>")))
+          (should (string= (buffer-substring-no-properties (point) (point-max))
+                           (substring contents (1- start-point))))
+          (erase-buffer))
+        (message "succeeded with %s" (prin1 contents))))))
 
 (ert-deftest rjsx-delete-creates-full-tag ()
   (let ((cases '("let c = (\n  <div>\n    <Component a=\"123\"/>\n  </div>)"
