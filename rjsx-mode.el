@@ -219,8 +219,12 @@ Sets KID's parent to N."
   (namespace nil)
   name)  ; js2-name-node
 
-(js2--struct-put 'rjsx-identifier 'js2-visitor 'js2-visit-none)
+(js2--struct-put 'rjsx-identifier 'js2-visitor 'rjsx-identifier-visit)
 (js2--struct-put 'rjsx-identifier 'js2-printer 'rjsx-identifier-print)
+
+(defun rjsx-identifier-visit (n callback)
+  "Visit N's children can call CALLBACK on them."
+  (js2-visit-ast (rjsx-identifier-name n) callback))
 
 (defun rjsx-identifier-print (node indent-level)
   "Print the `rjsx-identifier' NODE at INDENT-LEVEL."
@@ -239,8 +243,13 @@ Sets KID's parent to N."
   dots-pos  ; List of positions of each dot
   idents)   ; List of rjsx-identifier nodes
 
-(js2--struct-put 'rjsx-member 'js2-visitor 'js2-visit-none)
+(js2--struct-put 'rjsx-member 'js2-visitor 'rjsx-member-visit)
 (js2--struct-put 'rjsx-member 'js2-printer 'rjsx-member-print)
+
+(defun rjsx-member-visit (n callback)
+  "Visit N's children and call CALLBACK on them."
+  (dolist (ident (rjsx-member-idents n))
+    (js2-visit-ast ident callback)))
 
 (defun rjsx-member-print (node indent-level)
   "Print the `rjsx-member' NODE at INDENT-LEVEL."
@@ -646,12 +655,14 @@ argument ALLOW-NS is nil, does not allow namespaced names."
             (setq continue (and (not matched-colon) (= (js2-peek-token) js2-COLON)))))
         (when face
           (js2-set-face beg (js2-current-token-end) face 'record))
-        (setf (js2-node-len pn) (- (js2-current-token-end) beg)
-              (rjsx-identifier-name pn) (if name-start
-                                            (make-js2-name-node :pos name-start
-                                                                :len (- (js2-current-token-end) name-start)
-                                                                :name (apply #'concat (nreverse name-parts)))
-                                          (make-js2-name-node :pos (js2-current-token-end) :len 0 :name "")))
+        (let ((name-node (if name-start
+                             (make-js2-name-node :pos name-start
+                                                 :len (- (js2-current-token-end) name-start)
+                                                 :name (apply #'concat (nreverse name-parts)))
+                           (make-js2-name-node :pos (js2-current-token-end) :len 0 :name ""))))
+          (setf (js2-node-len pn) (- (js2-current-token-end) beg)
+                (rjsx-identifier-name pn) name-node)
+          (js2-node-add-children pn name-node))
         pn)
     (make-js2-error-node :len (js2-current-token-len))))
 
@@ -680,6 +691,7 @@ parse."
       (unless (js2-error-node-p ident)
         (setq end (js2-current-token-end)))
       (js2-node-add-children pn ident))
+    (apply 'js2-node-add-children pn idents)
     (setf (rjsx-member-idents pn) (nreverse idents)
           (rjsx-member-dots-pos pn) (nreverse dots-pos)
           (js2-node-len pn) (- end (js2-node-pos pn)))
@@ -723,7 +735,9 @@ closing tag was parsed."
     (if (setq pn (rjsx-parse-empty-tag))
         pn
       (if (js2-match-token js2-DIV)
-          (progn (setq pn (make-rjsx-closing-tag :pos beg :name (rjsx-parse-member-or-ns 'rjsx-tag)))
+          (progn (setq pn (make-rjsx-closing-tag :pos beg
+                                                 :name (rjsx-parse-member-or-ns 'rjsx-tag)))
+                 (js2-node-add-children pn (rjsx-closing-tag-name pn))
                  (if (js2-must-match js2-GT "msg.no.gt.in.closer" beg (- (js2-current-token-end) beg))
                      (rjsx-maybe-message "parsed closing tag")
                    (rjsx-maybe-message "missing closing `>'"))
