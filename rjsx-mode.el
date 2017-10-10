@@ -534,6 +534,7 @@ Assumes the current token is a '{'."
         name
       (setf (rjsx-attr-name pn) name)
       (setq beg (js2-node-pos name))
+      (setf (js2-node-pos pn) beg)
       (js2-node-add-children pn name)
       (rjsx-maybe-message "Got the name for the attr: `%s'" (rjsx-identifier-full-name name))
       (if (js2-match-token js2-ASSIGN)  ; Won't consume on error

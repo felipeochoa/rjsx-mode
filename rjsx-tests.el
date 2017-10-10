@@ -201,6 +201,41 @@
                             ("rjsx-identifier" 0 9
                              ("js2-name-node" 0 9))))))))))))))
 
+(ert-deftest rjsx-jsx-attr-pos-ast ()
+  "Regression test for #54. Ensure the ast is properly built."
+  (ert-with-test-buffer (:name 'rjsx)
+    (insert "import Comp from 'abc';\n\nconst c = () => (\n  <Comp a=\"b\" {...{}}>Child</Comp>\n);")
+
+    (js2-mode--and-parse)
+    (should (equal (rjsx-serialize-ast)
+                   '("js2-ast-root" 1 80
+                     ("js2-import-node" 0 23
+                      ("js2-import-clause-node" 0 11
+                       ("js2-export-binding-node" 7 4
+                        ("js2-name-node" 0 4)))
+                      ("js2-from-clause-node" 12 10))
+                     ("js2-expr-stmt-node" 25 55
+                      ("js2-var-decl-node" 0 54
+                       ("js2-var-init-node" 6 48
+                        ("js2-name-node" 0 1)
+                        ("js2-function-node" 4 44
+                         ("js2-paren-node" 6 38
+                          ("rjsx-node" 4 32
+                           ("rjsx-member" 1 4
+                            ("rjsx-identifier" 0 4
+                             ("js2-name-node" 0 4)))
+                           ("rjsx-attr" 6 5
+                            ("rjsx-identifier" 0 1
+                             ("js2-name-node" 0 1))
+                            ("js2-string-node" 2 3))
+                           ("rjsx-spread" 12 7
+                            ("js2-object-node" 4 2))
+                           ("rjsx-text" 20 5)
+                           ("rjsx-closing-tag" 25 7
+                            ("rjsx-member" 2 4
+                             ("rjsx-identifier" 0 4
+                              ("js2-name-node" 0 4)))))))))))))))
+
 ;;; Now we test all of the malformed bits:
 
 (defun jsx-test--forms (forms)
