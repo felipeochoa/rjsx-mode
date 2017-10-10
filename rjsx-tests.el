@@ -136,6 +136,71 @@
     (js2-mode--and-parse)
     (should (eq (syntax-class (syntax-after (point))) (syntax-class (string-to-syntax "."))))))
 
+(defun rjsx-serialize-ast ()
+  "Return a streamlined ast representation."
+  (let ((stack '(())))
+    (js2-visit-ast
+     js2-mode-ast
+     (lambda (node end-p)
+       (if end-p
+           (push (nreverse (pop stack)) (car stack))
+         (push (list (js2-node-len node)
+                     (js2-node-pos node)
+                     (js2-node-short-name node))
+               stack))))
+    (caar stack)))
+
+(ert-deftest rjsx-jsx-tag-names-ast ()
+  "Regression test for #54. Ensure the ast is properly built."
+  (ert-with-test-buffer (:name 'rjsx)
+    (insert "import Comp from 'abc';\n\nconst c = () => (\n  <Comp>Child</Comp>\n);")
+    (js2-mode--and-parse)
+    (should (equal (rjsx-serialize-ast)
+                   '("js2-ast-root" 1 66
+                     ("js2-import-node" 0 23
+                      ("js2-import-clause-node" 0 11
+                       ("js2-export-binding-node" 7 4
+                        ("js2-name-node" 0 4)))
+                      ("js2-from-clause-node" 12 10))
+                     ("js2-expr-stmt-node" 25 41
+                      ("js2-var-decl-node" 0 40
+                       ("js2-var-init-node" 6 34
+                        ("js2-name-node" 0 1)
+                        ("js2-function-node" 4 30
+                         ("js2-paren-node" 6 24
+                          ("rjsx-node" 4 18
+                           ("rjsx-member" 1 4
+                            ("rjsx-identifier" 0 4
+                             ("js2-name-node" 0 4)))
+                           ("rjsx-text" 6 5)
+                           ("rjsx-closing-tag" 11 7
+                            ("rjsx-member" 2 4
+                             ("rjsx-identifier" 0 4
+                              ("js2-name-node" 0 4)))))))))))))))
+
+(ert-deftest rjsx-jsx-self-closing-tag-names-ast ()
+  "Regression test for #54. Ensure the ast is properly built."
+  (ert-with-test-buffer (:name 'rjsx)
+    (insert "import Component from 'abc';\n\nconst c = () => (\n  <Component/>\n);")
+    (js2-mode--and-parse)
+    (should (equal (rjsx-serialize-ast)
+                   '("js2-ast-root" 1 65
+                     ("js2-import-node" 0 28
+                      ("js2-import-clause-node" 0 16
+                       ("js2-export-binding-node" 7 9
+                        ("js2-name-node" 0 9)))
+                      ("js2-from-clause-node" 17 10))
+                     ("js2-expr-stmt-node" 30 35
+                      ("js2-var-decl-node" 0 34
+                       ("js2-var-init-node" 6 28
+                        ("js2-name-node" 0 1)
+                        ("js2-function-node" 4 24
+                         ("js2-paren-node" 6 18
+                          ("rjsx-node" 4 12
+                           ("rjsx-member" 1 9
+                            ("rjsx-identifier" 0 9
+                             ("js2-name-node" 0 9))))))))))))))
+
 ;;; Now we test all of the malformed bits:
 
 (defun jsx-test--forms (forms)
