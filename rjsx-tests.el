@@ -669,10 +669,12 @@ Currently only forms with syntax errors are supported.
                  "let c = <div>{a || "
                  "let c = <div>{a ? "
                  "let c = <div>{a ? null :"
-                 "return ")))
+                 "return "
+                 "return /*\n hello world \n*/\n // more comments\n ")))
     (ert-with-test-buffer (:name 'origin)
       (dolist (contents cases)
         (insert contents)
+        (rjsx-mode)                     ; rjsx-electric-lt depends on the syntax table
         (rjsx-electric-lt 1)
         (should (string= (buffer-substring-no-properties (point-min) (point))
                          (concat contents "<")))
@@ -706,10 +708,12 @@ Currently only forms with syntax errors are supported.
                  "let c = <div>{a || "
                  "let c = <div>{a ? "
                  "let c = <div>{a ? null :"
-                 "return ")))
+                 "return "
+                 "return /*\n hello world \n*/\n // more comments\n ")))
     (ert-with-test-buffer (:name 'origin)
       (dolist (contents cases)
         (insert contents)
+        (rjsx-mode)
         (rjsx-electric-lt 3)
         (should (string= (buffer-substring-no-properties (point-min) (point))
                          (concat contents "<<<")))
