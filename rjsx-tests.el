@@ -374,11 +374,11 @@ Currently only forms with syntax errors are supported.
 
 (js2-deftest-parse falls-off-a-cliff-but-doesnt-hang
   "const Component = ({prop}) => <span>;\n\nexport default Component;"
-  :syntax-error ";\n\nexport default Component;")
+  :syntax-error "<span>;\n\nexport default Component;")
 
 (js2-deftest-parse falls-off-a-cliff-but-doesnt-hang-even-with-braces
   "const Component = ({prop}) => <span>;\n\nexport { Component };"
-  :syntax-error ";")
+  :syntax-error "<span>;\n\nexport { Component };")
 
 (js2-deftest-parse falls-off-a-cliff-but-doesnt-hang-even-with-other-jsx
   "const Component = ({prop}) => <span>;\nconst C2 = () => <span></span>\n\n"

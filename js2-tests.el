@@ -59,7 +59,7 @@ Debugging routine. NODE and ENDP are from `js2-visit-ast'."
           (let ((errors (js2-ast-root-errors ast)))
             (should (= (or errors-count 1) (length errors)))
             (cl-destructuring-bind (_ pos len) (car (last errors))
-              (should (string= syntax-error (substring code-string
+              (should (string= syntax-error (substring (concat code-string "")
                                                        (1- pos) (+ pos len -1))))))
         (should (= 0 (length (js2-ast-root-errors ast))))
         (ert-with-test-buffer (:name 'copy)

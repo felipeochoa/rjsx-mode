@@ -348,26 +348,28 @@ Sets KID's parent to N."
 
 (js2-deflocal rjsx-in-xml nil "Variable used to track which xml parsing function is the outermost one.")
 
+(define-error 'rjsx-eof-while-parsing "RJSX: EOF while parsing")
+
+(defmacro rjsx-handling-eof (&rest body)
+  "Execute BODY and return the result of the last form.
+If BODY signals `rjsx-eof-while-parsing', instead report a syntax
+error and return a `js2-error-node'."
+  `(let ((beg (js2-current-token-beg)))
+     (condition-case nil
+         (progn ,@body)
+       (rjsx-eof-while-parsing
+        (let ((len (- js2-ts-cursor beg)))
+          (rjsx-maybe-message (format "Handling eof from %d" beg))
+          (js2-report-error "msg.syntax" nil beg len)
+          (make-js2-error-node :pos beg :len len))))))
+
 (defun rjsx-parse-top-xml ()
   "Parse a top level XML fragment.
 This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
-  (rjsx-maybe-message "Parsing a new xml fragment%s" (if rjsx-in-xml ", recursively" ""))
-  ;; If there are imbalanced tags, we just need to bail out to the
-  ;; topmost JSX parser and let js2 handle the EOF. Our custom scanner
-  ;; will throw `t' if it finds the EOF, which it ordinarily wouldn't
-  (let (pn)
-    (when (catch 'rjsx-eof-while-parsing
-            (let ((rjsx-in-xml t)) ;; We use dynamic scope to handle xml > expr > xml nestings
-              (setq pn (rjsx-parse-xml)))
-            nil)
-      (rjsx-maybe-message "Caught a signal. Rethrowing?: `%s'" rjsx-in-xml)
-      (if rjsx-in-xml
-          (throw 'rjsx-eof-while-parsing t)
-        ;; We subtract 1 since js2 sets the cursor the the point after point-max
-        (setq pn (make-js2-error-node :len (1- (js2-current-token-len))))
-        (js2-report-error "msg.syntax" nil (js2-node-pos pn) (js2-node-len pn))))
-    (rjsx-maybe-message "Returning from top xml function: %s" pn)
-    pn))
+  (if rjsx-in-xml
+      (rjsx-parse-xml)
+    (let ((rjsx-in-xml t))
+      (rjsx-handling-eof (rjsx-parse-xml)))))
 
 (defun rjsx-parse-xml ()
   "Parse a complete xml node from start to end tag."
@@ -787,7 +789,7 @@ closing tag was parsed."
           (rjsx-maybe-message "Hit EOF. Current buffer: `%s'" (js2-token-string token))
           (setf (js2-token-type token) js2-ERROR)
           (rjsx-maybe-message "Scanner hit EOF. Panic!")
-          (throw 'rjsx-eof-while-parsing t))
+          (signal 'rjsx-eof-while-parsing nil))
          (t (js2-add-to-string c)))))))
 
 (js2-deflocal rjsx-buffer-chars-modified-tick 0 "Variable holding the last per-buffer value of `buffer-chars-modified-tick'.")
