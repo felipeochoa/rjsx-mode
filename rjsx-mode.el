@@ -84,6 +84,11 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
   "`rjsx-mode' face used to highlight JSX text."
   :group 'rjsx-mode)
 
+(defface rjsx-tag-bracket-face
+  '((t . (:inherit default)))
+  "`rjsx-mode' face used to highlight `<', `/', and `>'."
+  :group 'rjsx-mode)
+
 
 ;;;; Parser constants struct definitions
 
@@ -373,6 +378,7 @@ This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
 
 (defun rjsx-parse-xml ()
   "Parse a complete xml node from start to end tag."
+  (rjsx-record-tag-bracket-face)
   (let ((pn (make-rjsx-node)) self-closing name-n name-str child child-name-str)
     (rjsx-maybe-message "Starting rjsx-parse-xml after <")
     (if (setq child (rjsx-parse-empty-tag))
@@ -402,10 +408,13 @@ This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
             (progn
               (js2-record-text-property (js2-current-token-beg) (js2-current-token-end)
                                         'rjsx-class 'self-closing-slash)
+              (rjsx-record-tag-bracket-face)
               ;; TODO: How do we un-mark old slashes?
-              (js2-must-match js2-GT "msg.no.gt.after.slash"
-                                   (js2-node-pos pn) (- (js2-current-token-end) (js2-node-pos pn))))
-          (js2-must-match js2-GT "msg.no.gt.in.opener" (js2-node-pos pn) (js2-node-len pn)))
+              (when (js2-must-match js2-GT "msg.no.gt.after.slash"
+                                    (js2-node-pos pn) (- (js2-current-token-end) (js2-node-pos pn)))
+                (rjsx-record-tag-bracket-face)))
+          (when (js2-must-match js2-GT "msg.no.gt.in.opener" (js2-node-pos pn) (js2-node-len pn))
+            (rjsx-record-tag-bracket-face)))
         (rjsx-maybe-message "cleared opener closer, self-closing: %s" self-closing)
         (if self-closing
             (setf (js2-node-len pn) (- (js2-current-token-end) (js2-node-pos pn)))
@@ -735,14 +744,16 @@ and {}-bracketed expressions.  Return the parsed child."
 Return the parsed child, which is a `rjsx-closing-tag' if a
 closing tag was parsed."
   (let ((beg (js2-current-token-beg)) pn)
+    (rjsx-record-tag-bracket-face)
     (if (setq pn (rjsx-parse-empty-tag))
         pn
       (if (js2-match-token js2-DIV)
-          (progn (setq pn (make-rjsx-closing-tag :pos beg
+          (progn (rjsx-record-tag-bracket-face)
+                 (setq pn (make-rjsx-closing-tag :pos beg
                                                  :name (rjsx-parse-member-or-ns 'rjsx-tag)))
                  (js2-node-add-children pn (rjsx-closing-tag-name pn))
                  (if (js2-must-match js2-GT "msg.no.gt.in.closer" beg (- (js2-current-token-end) beg))
-                     (rjsx-maybe-message "parsed closing tag")
+                     (rjsx-record-tag-bracket-face)
                    (rjsx-maybe-message "missing closing `>'"))
                  (setf (js2-node-len pn) (- (js2-current-token-end) beg))
                  pn)
@@ -793,6 +804,10 @@ closing tag was parsed."
          (t (js2-add-to-string c)))))))
 
 (js2-deflocal rjsx-buffer-chars-modified-tick 0 "Variable holding the last per-buffer value of `buffer-chars-modified-tick'.")
+
+(defsubst rjsx-record-tag-bracket-face ()
+  "Fontify the current token with `rjsx-tag-bracket-face'."
+  (js2-set-face (js2-current-token-beg) (js2-current-token-end) 'rjsx-tag-bracket-face 'record))
 
 (defun rjsx-maybe-reparse ()
   "Called before accessing the parse tree.
