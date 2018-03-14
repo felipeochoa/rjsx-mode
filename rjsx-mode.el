@@ -864,6 +864,15 @@ inserts `</>' and places the cursor inside the new tag."
 
 (define-key rjsx-mode-map "<" 'rjsx-electric-lt)
 
+(defun rjsx-expand-self-closing-tag (node)
+  "Expand NODE into a balanced tag.
+Assumes NODE is self-closing `rjsx-node', and that point is at
+the self-closing slash."
+  (delete-char 1)
+  (search-forward ">")
+  (save-excursion
+    (insert "</" (rjsx-node-opening-tag-name node) ">")))
+
 (defun rjsx-electric-gt (n)
   "Insert a context-sensitive greater-than sign.
 Optional prefix argument N indicates how many signs to insert.
@@ -877,11 +886,7 @@ the tags."
       (insert (make-string n ?>))
     (let ((node (rjsx--tag-at-point)))
       (if node
-          (progn
-            (delete-char 1)
-            (search-forward ">")
-            (save-excursion
-              (insert "</" (rjsx-node-opening-tag-name node) ">")))
+          (rjsx-expand-self-closing-tag node)
         (insert (make-string n ?>))))))
 
 (define-key rjsx-mode-map ">" 'rjsx-electric-gt)
@@ -898,11 +903,7 @@ slash and inserts a matching end-tag."
 	(delete-char n killflag))
     (let ((node (rjsx--tag-at-point)))
       (if node
-          (progn
-            (delete-char 1)
-            (search-forward ">" )
-            (save-excursion
-              (insert "</" (rjsx-node-opening-tag-name node) ">")))
+          (rjsx-expand-self-closing-tag node)
         (delete-char 1)))))
 
 (define-key rjsx-mode-map (kbd "C-d") 'rjsx-delete-creates-full-tag)
