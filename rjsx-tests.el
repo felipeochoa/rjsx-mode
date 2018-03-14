@@ -59,6 +59,9 @@
 (js2-deftest-parse ns-attr-with-dashes-at-end-of-ns
   "<xml:a lmx-:attr=\"1\"/>;")
 
+(js2-deftest-parse fragment
+  "<><span id='1'/><span id='2'></span></>;")
+
 (js2-deftest-parse member-tag
   "<Module.Component/>;"
   :bind (js2-highlight-external-variables))
@@ -359,7 +362,7 @@ Currently only forms with syntax errors are supported.
 
 (js2-deftest-parse invalid-tag-name
   "<123 />"
-  :errors-count 3
+  :errors-count 2
   :syntax-error "123")
 
 (js2-deftest-parse invalid-tag-name-only-ns
@@ -644,7 +647,8 @@ Currently only forms with syntax errors are supported.
                     ("<div></vid>" "div" "div")
                     ("<C-d-e:f-g-h-></C-d-e:f-g-h->" "C-d-e:f-g-h" "C-d-e:f-g-h")
                     ("<C.D.E></C.D.E>" "C.D.E" "C.D.E")
-                    ("<C-a.D-a.E-a/>" "C-a.D-a.E-a" nil)))
+                    ("<C-a.D-a.E-a/>" "C-a.D-a.E-a" nil)
+                    ("<></>" "" "")))
       (erase-buffer)
       (js2-visit-ast
        (js2-test-string-to-ast (car test))
@@ -938,7 +942,13 @@ Currently only forms with syntax errors are supported.
                  ("let c = <div a={<Comp" "onent/>}/>"
                   "let c = <div a={<NewName/>}/>")
                  ("let c = <div>{a && <Component a={123}/" ">}</div>"
-                  "let c = <div>{a && <NewName a={123}/>}</div>"))))
+                  "let c = <div>{a && <NewName a={123}/>}</div>")
+                 ("let c = <div>{a && <" "></>}</div>"
+                  "let c = <div>{a && <NewName></NewName>}</div>")
+                 ("let c = <div>{a && <>x" "yz\n    <Component/></>}</div>"
+                  "let c = <div>{a && <NewName>xyz\n    <Component/></NewName>}</div>")
+                 ("let c = <div>{a && <" "><Component/></>}</div>"
+                  "let c = <div>{a && <NewName><Component/></NewName>}</div>"))))
     (ert-with-test-buffer (:name 'origin)
       (dolist (case cases)
         (erase-buffer)
