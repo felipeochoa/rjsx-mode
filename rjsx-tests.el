@@ -12,6 +12,7 @@
 (require 'rjsx-mode)
 (require 'cl-lib)
 (require 'ert)
+(require 'ert-x)
 
 (defun js2-mode--and-parse ()  ;; No point in advising, so we just overwrite this internal function
   (rjsx-mode)
@@ -1019,5 +1020,63 @@ Currently only forms with syntax errors are supported.
       (rjsx-mode)
       (indent-region (point-min) (point-max))
       (should (string= correct (buffer-string))))))
+
+
+;; Minor-mode
+
+(defun rjsx-test-minor-mode-string-to-ast (s)
+  "Convert S into a js2 AST node."
+  (insert s)
+  (rjsx-minor-mode 1)
+  (js2-reparse)
+  (should (null js2-mode-buffer-dirty-p))
+  js2-mode-ast)
+
+(ert-deftest rjsx-minor-mode-parsing ()
+  "Test that the parser works when the minor mode is active."
+  (let* ((s "<form onSubmit={this.handleSubmit} className={className}>
+  <input type=\"text\"
+         onChange={this.getChangeHandler(\"name\")}
+         placeholder=\"Project name\"
+         className={errors.name ? \"invalid\" : \"\"}
+         ref={c => this._topInput = c}/>
+    {errors.name && <span className=\"error\">{errors.name}</span>}
+    {   } Empty is OK as child, but warning is issued
+    <Undeclared value={123}/>
+    {/* Node with comment gets no warning */}
+    <div empty /> Empty attributes are allowed
+    {React.Children.count(this.props.children) === 1
+        ? <OnlyChild {...this.props}>{this.props.children}</OnlyChild>
+        : React.Children.map(this.props.children, (child, index) => (
+            <li key={index} undefinedProp={notDefined}>
+              {index === 0 && <span className=\"first\"/>}
+              {React.cloneElement(child, {toolTip: <Tooltip index={index} />})}
+            </li>
+        ))
+    }
+</form>")
+         (ref "<form onSubmit={this.handleSubmit} className={className}>
+  <input type=\"text\" onChange={this.getChangeHandler(\"name\")} placeholder=\"Project name\" className={errors.name ? \"invalid\" : \"\"} ref={(c) => {this._topInput = c}}/>
+    {errors.name && <span className=\"error\">{errors.name}</span>}
+    {} Empty is OK as child, but warning is issued
+    <Undeclared value={123}/>
+    {}
+    <div empty/> Empty attributes are allowed
+    {React.Children.count(this.props.children) === 1 ? <OnlyChild {...this.props}>{this.props.children}</OnlyChild> : React.Children.map(this.props.children, (child, index) => {(<li key={index} undefinedProp={notDefined}>
+              {index === 0 && <span className=\"first\"/>}
+              {React.cloneElement(child, {toolTip: <Tooltip index={index}/>})}
+            </li>)})}
+</form>;")
+         (ast (rjsx-test-minor-mode-string-to-ast s))
+         (printed
+          (ert-with-test-buffer (:name 'rjsx-minor-mode-printing)
+            (js2-print-tree ast)
+            (skip-chars-backward " \t\n")
+            (buffer-substring-no-properties (point-min) (point)))))
+    (should (string= ref printed))
+    (should (= 0 (length (js2-ast-root-errors ast))))
+    (should (equal (assoc '("msg.empty.expr" nil)
+                          (js2-ast-root-warnings ast))
+                   '(("msg.empty.expr" nil) 327 5 nil)))))
 
 ;;; rjsx-tests.el ends here
