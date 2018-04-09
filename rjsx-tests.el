@@ -972,4 +972,30 @@ Currently only forms with syntax errors are supported.
     (let ((rjsx-max-size-for-frequent-reparse (1- (point-max))))
       (should-error (rjsx--tag-at-point)))))
 
+
+;; Indentation
+
+(ert-deftest rjsx-indentation-1 ()
+  "Regression test for #67."
+  (ert-with-test-buffer (:name 'rjsx-indentation-1)
+    (let ((correct "function Example(props) {
+  return (
+    <ul>
+      {
+        [1,2,3].map(lang => {
+          return(
+            <li key={lang}>
+              {lang}
+            </li>
+          )
+        })
+      }
+    </ul>
+  )
+}"))
+      (insert correct)
+      (rjsx-mode)
+      (indent-region (point-min) (point-max))
+      (should (string= correct (buffer-string))))))
+
 ;;; rjsx-tests.el ends here
