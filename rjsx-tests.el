@@ -686,6 +686,25 @@ Currently only forms with syntax errors are supported.
                          "/>"))
         (erase-buffer)))))
 
+(ert-deftest rjsx-electric-lt-in-jsx-text ()
+  "Regression test for #68"
+  ;; This test ensures that newlines are properly skipped in JSX text when looking for the prior
+  ;; token. In JSX text, newlines are not whitespace (cf #67) or comment enders, so aren't skipped
+  ;; over by forward-comment
+  (ert-with-test-buffer (:name 'electric-lt-in-jsx-text)
+    (let ((pre "let c = (\n  <div>\n    ")
+          (post "\n  </div>\n);"))
+      (insert pre)
+      (save-excursion (insert post))
+      (rjsx-mode)
+      (js2-reparse)
+      (rjsx-electric-lt 1)
+      (should (string= (buffer-substring-no-properties (point-min) (point))
+                       (concat pre "<")))
+      (should (string= (buffer-substring-no-properties (point) (point-max))
+                       (concat "/>" post)))
+      (erase-buffer))))
+
 (ert-deftest rjsx-electric-lt-grounded ()
   (let ((cases '("let c = 3 "
                  "if (n "

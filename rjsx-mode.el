@@ -860,7 +860,7 @@ inserts `</>' and places the cursor inside the new tag."
         (insert (make-string n ?<))
       (if (save-excursion
             (forward-comment most-negative-fixnum)
-            (skip-syntax-backward " ")
+            (skip-chars-backward "\n\r")
             (or (= (point) (point-min))
                 (memq (char-before) (append "=(?:>}&|{," nil))
                 (let ((start (- (point) 6)))
