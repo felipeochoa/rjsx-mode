@@ -379,6 +379,10 @@ error and return a `js2-error-node'."
           (js2-report-error "msg.syntax" nil beg len)
           (make-js2-error-node :pos beg :len len))))))
 
+(defsubst rjsx-record-tag-bracket-face ()
+  "Fontify the current token with `rjsx-tag-bracket-face'."
+  (js2-set-face (js2-current-token-beg) (js2-current-token-end) 'rjsx-tag-bracket-face 'record))
+
 (defun rjsx-parse-top-xml ()
   "Parse a top level XML fragment.
 This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
@@ -825,10 +829,6 @@ as a fragment closing node, and not as an empty tag."
          (t (js2-add-to-string c)))))))
 
 (js2-deflocal rjsx-buffer-chars-modified-tick 0 "Variable holding the last per-buffer value of `buffer-chars-modified-tick'.")
-
-(defsubst rjsx-record-tag-bracket-face ()
-  "Fontify the current token with `rjsx-tag-bracket-face'."
-  (js2-set-face (js2-current-token-beg) (js2-current-token-end) 'rjsx-tag-bracket-face 'record))
 
 (defun rjsx-maybe-reparse ()
   "Called before accessing the parse tree.
