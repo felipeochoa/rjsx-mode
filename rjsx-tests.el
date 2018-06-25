@@ -23,6 +23,9 @@
 (js2-deftest-parse no-attr-no-children-self-closing
   "<div></div>;")
 
+(js2-deftest-parse empty-attr-no-children
+  "<div attr></div>;")
+
 (js2-deftest-parse no-children-self-closing
   "<div a=\"1\" b={123} {...this.props}/>;")
 
