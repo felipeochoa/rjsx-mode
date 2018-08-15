@@ -1017,7 +1017,7 @@ PREDICATE."
                    (rjsx-node-p (js2-node-parent parent))
                    (or (rjsx-text-p node) (rjsx-node-p node)))
           (let* ((expr-start (js2-node-abs-pos parent))
-                 (expr-end (js2-node-abs-end parent))
+                 (expr-end (+ expr-start (js2-node-len parent)))
                  (body-start (1+ expr-start))
                  (body-end (1- expr-end))
                  (body-length (- body-end body-start)))
