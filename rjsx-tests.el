@@ -1079,4 +1079,1399 @@ Currently only forms with syntax errors are supported.
                           (js2-ast-root-warnings ast))
                    '(("msg.empty.expr" nil) 327 5 nil)))))
 
+
+
+;; Comments
+(cl-defmacro rjsx-deftest-comment (name fixture expected &optional (command nil) &rest pre-command)
+  "Macro to define comment tests.
+
+Defines a comment ERT test named NAME. The test is setup by first
+inserting the FIXTURE string into a ERT test buffer and invoking
+`rjsx-mode'. It then executes PRE-COMMAND, then optionally
+COMMAND, then asserts the buffer content is the same as EXPECTED,
+then finaly cleans up the buffer and exits.
+
+COMMAND is not needed if the comment command under test is
+invoked explicitly in PRE-COMMAND.
+"
+  (declare (indent defun))
+  `(ert-deftest ,(intern (format "rjsx-%s" name)) ()
+     (ert-with-test-buffer (:name ',name)
+       (let ((fixture ,fixture)
+             (expected ,expected))
+         (erase-buffer)
+         (insert fixture)
+         (goto-char (point-min))
+         (rjsx-mode)
+         (js2-reparse)
+
+         ,@pre-command
+
+         (when ,command
+           (call-interactively ,command))
+
+         (should (string= (buffer-substring-no-properties (point-min) (point-max)) expected))
+
+         (erase-buffer)))))
+
+(rjsx-deftest-comment
+  comment-dwim-js-line
+  "for (let i = 0; i < 10; i++) {
+  console.log(i);
+}
+"
+  "for (let i = 0; i < 10; i++) {	// 
+  console.log(i);
+}
+"
+'rjsx-comment-dwim)
+
+(rjsx-deftest-comment
+  comment-dwim-js-region
+  "for (let i = 0; i < 10; i++) {
+  console.log(i);
+}
+"
+  "// for (let i = 0; i < 10; i++) {
+//   console.log(i);
+// }
+"
+  'rjsx-comment-dwim
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (goto-char (point-max)))
+
+(rjsx-deftest-comment
+  comment-dwim-region-top-level-element
+  "(
+  <div>
+  </div>
+)"
+  "(
+  // <div>
+  // </div>
+)"
+  'rjsx-comment-dwim
+  (forward-line 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 2))
+
+(rjsx-deftest-comment
+  uncomment-dwim-region-top-level-element
+  "(
+  // <div>
+  // </div>
+)"
+  "(
+  <div>
+  </div>
+)"
+  'rjsx-comment-dwim
+  (forward-line 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 2))
+
+(rjsx-deftest-comment
+  comment-dwim-region-child-element
+  "(
+  <div>
+    <span>1</span>
+    <span>1</span>
+  </div>
+)"
+  "(
+  <div>
+    {/* <span>1</span> */}
+    {/* <span>1</span> */}
+  </div>
+)"
+  'rjsx-comment-dwim
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 2))
+
+(rjsx-deftest-comment
+  uncomment-dwim-region-child-element
+  "(
+  <div>
+    {/* <span>1</span> */}
+    {/* <span>1</span> */}
+  </div>
+)"
+  "(
+  <div>
+    <span>1</span>
+    <span>1</span>
+  </div>
+)"
+  'rjsx-comment-dwim
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 2))
+
+(rjsx-deftest-comment
+  comment-dwim-region-attr
+  "(
+  <div
+    id=\"id\"
+    className=\"className\"
+  >
+    <span>1</span>
+  </div>
+)"
+  "(
+  <div
+    /* id=\"id\" */
+    /* className=\"className\" */
+  >
+    <span>1</span>
+  </div>
+)"
+  'rjsx-comment-dwim
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 2))
+
+(rjsx-deftest-comment
+  uncomment-dwim-region-attr
+  "(
+  <div
+    /* id=\"id\" */
+    /* className=\"className\" */
+  >
+    <span>1</span>
+  </div>
+)"
+  "(
+  <div
+    id=\"id\"
+    className=\"className\"
+  >
+    <span>1</span>
+  </div>
+)"
+  'rjsx-comment-dwim
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 2))
+
+(rjsx-deftest-comment
+  comment-dwim-region-text
+  "(
+  <div>
+    hello
+    world
+  </div>
+)"
+  "(
+  <div>
+    {/* hello */}
+    {/* world */}
+  </div>
+)"
+  'rjsx-comment-dwim
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 2))
+
+(rjsx-deftest-comment
+  uncomment-dwim-region-text
+  "(
+  <div>
+    {/* hello */}
+    {/* world */}
+  </div>
+)"
+  "(
+  <div>
+    hello
+    world
+  </div>
+)"
+  'rjsx-comment-dwim
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 2))
+
+(rjsx-deftest-comment
+  comment-dwim-region-wrapped-expr-outer
+  "(
+  <div>
+    {[1,2,3].map(num => (
+      <div>
+        {num}
+      </div>
+    ))}
+  </div>
+)"
+  "(
+  <div>
+    {/* {[1,2,3].map(num => ( */}
+    {/*   <div> */}
+    {/*     {num} */}
+    {/*   </div> */}
+    {/* ))} */}
+  </div>
+)"
+  'rjsx-comment-dwim
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 5))
+
+(rjsx-deftest-comment
+  uncomment-dwim-region-wrapped-expr-outer
+  "(
+  <div>
+    {/* {[1,2,3].map(num => ( */}
+    {/*   <div> */}
+    {/*     {num} */}
+    {/*   </div> */}
+    {/* ))} */}
+  </div>
+)"
+  "(
+  <div>
+    {[1,2,3].map(num => (
+      <div>
+        {num}
+      </div>
+    ))}
+  </div>
+)"
+  'rjsx-comment-dwim
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 5))
+
+(rjsx-deftest-comment
+  comment-dwim-region-wrapped-expr-inner
+  "(
+  <div>
+    {[1,2,3].map(num => (
+      <div>
+        {num}
+      </div>
+    ))}
+  </div>
+)"
+  "(
+  <div>
+    {[1,2,3].map(num => (
+      /* <div> */
+      /*   {num} */
+      /* </div> */
+    ))}
+  </div>
+)"
+  'rjsx-comment-dwim
+  (forward-line 3)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 3))
+
+(rjsx-deftest-comment
+  uncomment-dwim-region-wrapped-expr-inner
+  "(
+  <div>
+    {[1,2,3].map(num => (
+      /* <div> */
+      /*   {num} */
+      /* </div> */
+    ))}
+  </div>
+)"
+  "(
+  <div>
+    {[1,2,3].map(num => (
+      <div>
+        {num}
+      </div>
+    ))}
+  </div>
+)"
+  'rjsx-comment-dwim
+  (forward-line 3)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 3))
+
+(rjsx-deftest-comment
+  comment-dwim-top-level-element-single-value
+  "const Div = () => <div/>;"
+  "const Div = () => /* <div/> */;"
+  'rjsx-comment-dwim
+  (search-forward "<"))
+
+(rjsx-deftest-comment
+  uncomment-dwim-top-level-element-single-value
+  "const Div = () => /* <div/> */;"
+  "const Div = () => <div/>;"
+  'rjsx-comment-dwim
+  (search-forward "/"))
+
+(rjsx-deftest-comment
+  comment-dwim-top-level-element-single-value-parened
+  "const Div = () => (<div></div>);"
+  "const Div = () => (/* <div></div> */);"
+  'rjsx-comment-dwim
+  (search-forward "<"))
+
+(rjsx-deftest-comment
+  uncomment-dwim-top-level-element-single-value-parened
+  "const Div = () => (/* <div></div> */);"
+  "const Div = () => (<div></div>);"
+  'rjsx-comment-dwim
+  (search-forward "/"))
+
+(rjsx-deftest-comment
+  comment-dwim-top-level-element-vertical
+  "const Div = () => (
+  <div>
+    hello
+    world
+  </div>
+);"
+  "const Div = () => (
+  /* <div> */
+  /*   hello */
+  /*   world */
+  /* </div> */
+);"
+  'rjsx-comment-dwim
+  (search-forward "<"))
+
+(rjsx-deftest-comment
+  uncomment-dwim-top-level-element-vertical
+  "const Div = () => (
+  /* <div> */
+  /*   hello */
+  /*   world */
+  /* </div> */
+);"
+  "const Div = () => (
+  <div>
+    hello
+    world
+  </div>
+);"
+  'rjsx-comment-dwim
+  (forward-line 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 4))
+
+(rjsx-deftest-comment
+  comment-dwim-nested-element
+  "(<div><span>hello</span></div>)"
+  "(<div>{/* <span>hello</span> */}</div>)"
+  'rjsx-comment-dwim
+  (search-forward "<s"))
+
+(rjsx-deftest-comment
+  uncomment-dwim-nested-element
+  "(<div>{/* <span>hello</span> */}</div>)"
+  "(<div><span>hello</span></div>)"
+  'rjsx-comment-dwim
+  (search-forward "{"))
+
+(rjsx-deftest-comment
+  comment-dwim-attr-horizontal-className
+  "(<div className={1}></div>)"
+  "(<div /* className={1} */></div>)"
+  nil
+  (search-forward "className")
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-attr-horizontal-namespace
+  "(<div /* namespace:foo=\"\" */></div>)"
+  "(<div namespace:foo=\"\"></div>)"
+  nil
+  (search-forward ":")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-attr-horizontal-string
+  "(<div /* bar='' */></div>)"
+  "(<div bar=''></div>)"
+  nil
+  (search-forward "bar=")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-attr-horizontal-boolean
+  "(<div /* baz */></div>)"
+  "(<div baz></div>)"
+  nil
+  (search-forward "baz")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-attr-horizontal-spread
+  "(<div /* {...props} */></div>)"
+  "(<div {...props}></div>)"
+  nil
+  (search-forward "...")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  comment-dwim-attr-vertical-className
+  "(<div
+  className={1}
+/>)
+"
+  "(<div
+  /* className={1} */
+/>)
+"
+  nil
+  (forward-line 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  comment-dwim-attr-vertical-namespace
+  "(<div
+  namespace:foo=\"\"
+/>)
+"
+  "(<div
+  /* namespace:foo=\"\" */
+/>)
+"
+  nil
+  (forward-line 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  comment-dwim-attr-vertical-string
+  "(<div
+  bar=''
+/>)
+"
+  "(<div
+  /* bar='' */
+/>)
+"
+  nil
+  (forward-line 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  comment-dwim-attr-vertical-boolean
+  "(<div
+  baz
+/>)
+"
+  "(<div
+  /* baz */
+/>)
+"
+  nil
+  (forward-line 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  comment-dwim-attr-vertical-spread
+  "(<div
+  {...props}
+/>)
+"
+  "(<div
+  /* {...props} */
+/>)
+"
+  nil
+  (forward-line 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-attr-vertical-className
+  "(<div
+  /* className={1} */
+/>)
+"
+  "(<div
+  className={1}
+/>)
+"
+  nil
+  (forward-line 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-attr-vertical-namespace
+  "(<div
+  /* namespace:foo=\"\" */
+/>)
+"
+  "(<div
+  namespace:foo=\"\"
+/>)
+"
+  nil
+  (forward-line 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-attr-vertical-string
+  "(<div
+  /* bar='' */
+/>)
+"
+  "(<div
+  bar=''
+/>)
+"
+  nil
+  (forward-line 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-attr-vertical-boolean
+  "(<div
+  /* baz */
+/>)
+"
+  "(<div
+  baz
+/>)
+"
+  nil
+  (forward-line 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-attr-vertical-spread
+  "(<div
+  /* {...props} */
+/>)
+"
+  "(<div
+  {...props}
+/>)
+"
+  nil
+  (forward-line 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  comment-dwim-wrapped-expr-horizontal-inner
+  "(<div className={cls}>{[1,2,3].map(String)}<span>{foo}</span></div>)"
+  "(<div className={/* cls */}>{/* [1,2,3].map(String) */}<span>{/* foo */}</span></div>)"
+  nil
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  comment-dwim-wrapped-expr-horizontal-outer
+  "(<div className={cls}>{[1,2,3].map(String)}<span>{foo}</span></div>)"
+  "(<div className={/* cls */}>{/* [1,2,3].map(String) */}<span>{/* foo */}</span></div>)"
+  nil
+  (search-forward "{")
+  (backward-char 1)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 2)
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 2)
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-wrapped-expr-horizontal-inner
+  "(<div className={/* cls */}>{/* [1,2,3].map(String) */}<span>{/* foo */}</span></div>)"
+  "(<div className={cls}>{[1,2,3].map(String)}<span>{foo}</span></div>)"
+  nil
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-wrapped-expr-horizontal-outer
+  "(<div className={/* cls */}>{/* [1,2,3].map(String) */}<span>{/* foo */}</span></div>)"
+  "(<div className={cls}>{[1,2,3].map(String)}<span>{foo}</span></div>)"
+  nil
+  (search-forward "{")
+  (backward-char 1)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 2)
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 2)
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  comment-dwim-wrapped-expr-vertical-inner
+  "(
+  <div
+    className={cls}
+  >
+    {}
+    {[1,2,3].map(String)}
+    {
+      [1,2,3].map(num => (
+        num * num
+      ))
+    }
+    {foo}
+  </div>
+)"
+  "(
+  <div
+    className={/* cls */}
+  >
+    {/* {} */}
+    {/* [1,2,3].map(String) */}
+    {  // 
+      [1,2,3].map(num => (
+        num * num
+      ))
+    }
+    {/* foo */}
+  </div>
+)"
+  nil
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  comment-dwim-wrapped-expr-vertical-outer
+  "(
+  <div
+    className={cls}
+  >
+    {}
+    {[1,2,3].map(String)}
+    {
+      [1,2,3].map(num => (
+        num * num
+      ))
+    }
+    {foo}
+  </div>
+)"
+  "(
+  <div
+    className={/* cls */}
+  >
+    {/* {} */}
+    {/* [1,2,3].map(String) */}
+    {  // 
+      [1,2,3].map(num => (
+        num * num
+      ))
+    }
+    {/* foo */}
+  </div>
+)"
+  nil
+  (search-forward "{")
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 2)
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 3)
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 2)
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 2)
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-wrapped-expr-vertical-inner
+  "(
+  <div
+    className={/* cls */}
+  >
+    {/* {} */}
+    {/* [1,2,3].map(String) */}
+    {  //
+      [1,2,3].map(num => (
+        num * num
+      ))
+    }
+    {/* foo */}
+  </div>
+)"
+  "(
+  <div
+    className={cls}
+  >
+    {{}}
+    {[1,2,3].map(String)}
+    {  
+      [1,2,3].map(num => (
+        num * num
+      ))
+    }
+    {foo}
+  </div>
+)"
+  nil
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 2)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{")
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  uncomment-dwim-wrapped-expr-vertical-outer
+  "(
+  <div
+    className={/* cls */}
+  >
+    {/* {} */}
+    {/* [1,2,3].map(String) */}
+    {
+      // [1,2,3].map(num => (
+        num * num
+      ))
+    }
+    {/* foo */}
+  </div>
+)"
+  "(
+  <div
+    className={cls}
+  >
+    {}
+    [1,2,3].map(String)
+    {
+      [1,2,3].map(num => (
+        num * num
+      ))
+    }
+    foo
+  </div>
+)"
+  nil
+  (search-forward "{")
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 2)
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 2)
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (forward-line 2)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{")
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  comment-dwim-wrapped-expr-empty-expr-horizontal
+  "(<div>{}{/* */}{/* hello */}</div>)"
+  "(<div>{/* {} */}{}{hello}</div>)"
+  'nil
+  (search-forward "{")
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 3)
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (search-forward "{" (point-max) t 2)
+  (backward-char 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  comment-dwim-wrapped-expr-empty-expr-vertical
+  "(
+  <div>
+    {}
+    {/* */}
+    {/* hello */}
+  </div>
+)"
+  "(
+  <div>
+    {/* {} */}
+   
+    hello
+  </div>
+)"
+  'nil
+  (forward-line 2)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (forward-line 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim)
+
+  (forward-line 1)
+  (js2-reparse)
+  (call-interactively 'rjsx-comment-dwim))
+
+(rjsx-deftest-comment
+  comment-dwim-text-horizontal
+  "(<div>hello</div>)"
+  "(/* <div>hello</div> */)"
+  'rjsx-comment-dwim
+  (search-forward "hello"))
+
+(rjsx-deftest-comment
+  comment-dwim-text-vertical
+  "(
+  <div>
+    <span>hello</span>
+  </div>
+)"
+  "(
+  <div>
+    {/* <span>hello</span> */}
+  </div>
+)"
+  'rjsx-comment-dwim
+  (search-forward "hello"))
+
+(rjsx-deftest-comment
+  uncomment-dwim-text-horizontal
+  "(/* <div>hello</div> */)"
+  "(<div>hello</div>)"
+  'rjsx-comment-dwim
+  (search-forward "hello"))
+
+(rjsx-deftest-comment
+  uncomment-dwim-text-vertical
+  "(
+  <div>
+    {/* <span>hello</span> */}
+  </div>
+)"
+  "(
+  <div>
+    <span>hello</span>
+  </div>
+)"
+  'rjsx-comment-dwim
+  (search-forward "hello"))
+
+(rjsx-deftest-comment
+  comment-region-js
+  "function foo () {
+  for (let i = 0; i < 10; i++) {
+    console.log(i);
+  }
+}
+"
+  "// function foo () {
+//   for (let i = 0; i < 10; i++) {
+//     console.log(i);
+//   }
+// }
+"
+  'comment-region
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (goto-char (point-max)))
+
+(rjsx-deftest-comment
+  uncomment-region-js
+  "// function foo () {
+//   for (let i = 0; i < 10; i++) {
+//     console.log(i);
+//   }
+// }
+"
+  "function foo () {
+  for (let i = 0; i < 10; i++) {
+    console.log(i);
+  }
+}
+"
+  'uncomment-region
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (goto-char (point-max)))
+
+(rjsx-deftest-comment
+  comment-region-top-level-element
+  "(
+  <div></div>
+)"
+  "(
+  // <div></div>
+)"
+  'comment-region
+  (forward-line 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (end-of-line))
+
+(rjsx-deftest-comment
+  uncomment-region-top-level-element
+  "(
+  // <div></div>
+)"
+  "(
+  <div></div>
+)"
+  'uncomment-region
+  (forward-line 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (end-of-line))
+
+(rjsx-deftest-comment
+  comment-region-nested-element
+  "(<div><span></span></div>)"
+  "(<div>{/* <span></span> */}</div>)"
+  'comment-region
+  (search-forward "<s")
+  (backward-char 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (search-forward "</d")
+  (backward-char 3))
+
+(rjsx-deftest-comment
+  uncomment-region-nested-element
+  "(<div>{/* <span></span> */}</div>)"
+  "(<div><span></span></div>)"
+  'uncomment-region
+  (search-forward "{")
+  (backward-char 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (search-forward "}"))
+
+(rjsx-deftest-comment
+  comment-region-attr-horizontal
+  "(<div className=\"\"></div>)"
+  "(<div /* className=\"\" */></div>)"
+  'comment-region
+  (search-forward "c")
+  (backward-char 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (search-forward "\"\""))
+
+(rjsx-deftest-comment
+  comment-region-attr-vertical
+  "(
+  <div
+    className=\"\"
+  ></div>
+)"
+  "(
+  <div
+    /* className=\"\" */
+  ></div>
+)"
+  'comment-region
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (end-of-line))
+
+(rjsx-deftest-comment
+  uncomment-region-attr-horizontal
+  "(<div /* className=\"\" */></div>)"
+  "(<div className=\"\"></div>)"
+  'uncomment-region
+  (search-forward "/*")
+  (backward-char 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (search-forward "*/"))
+
+(rjsx-deftest-comment
+  uncomment-region-attr-vertical
+  "(
+  <div
+    /* className=\"\" */
+  ></div>
+)"
+  "(
+  <div
+    className=\"\"
+  ></div>
+)"
+  'uncomment-region
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (end-of-line))
+
+(rjsx-deftest-comment
+  comment-region-wrapped-expr-horizontal
+  "(<div style={styles}></div>)"
+  "(<div style={/* styles */}></div>)"
+  'comment-region
+  (search-forward "{")
+  (backward-char 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (search-forward "}"))
+
+(rjsx-deftest-comment
+  comment-region-wrapped-expr-horizontal-empty
+  "(<div>{}</div>)"
+  "(<div>{/* {} */}</div>)"
+  'comment-region
+  (search-forward "{")
+  (backward-char 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (search-forward "}"))
+
+(rjsx-deftest-comment
+  comment-region-wrapped-expr-horizontal-empty-comment
+  "(<div>{/* {} */}</div>)"
+  "(<div>{/* {/\\* {} *\\/} */}</div>)"
+  'comment-region
+  (search-forward "{/*")
+  (backward-char 3)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (search-forward "*/}"))
+
+(rjsx-deftest-comment
+  comment-region-wrapped-expr-vertical-inner
+  "(
+  <div>
+    {
+      [1, 2, 3].map(num => (
+        num * num
+      ))
+    }
+  </div>
+)"
+  "(
+  <div>
+    {
+      /* [1, 2, 3].map(num => ( */
+      /*   num * num */
+      /* )) */
+    }
+  </div>
+)"
+  'comment-region
+  (forward-line 3)
+  (backward-char 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 4))
+
+(rjsx-deftest-comment
+  comment-region-wrapped-expr-vertical-outer
+  "(
+  <div>
+    {
+      [1, 2, 3].map(num => (
+        num * num
+      ))
+    }
+  </div>
+)"
+  "(
+  <div>
+    {/* { */}
+    {/*   [1, 2, 3].map(num => ( */}
+    {/*     num * num */}
+    {/*   )) */}
+    {/* } */}
+  </div>
+)"
+  'comment-region
+  (forward-line 2)
+  (backward-char 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 6))
+
+(rjsx-deftest-comment
+  uncomment-region-wrapped-expr-horizontal
+  "(<div style={/* styles */}></div>)"
+  "(<div style=styles></div>)"
+  'uncomment-region
+  (search-forward "{")
+  (backward-char 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (search-forward "}"))
+
+(rjsx-deftest-comment
+  uncomment-region-wrapped-expr-horizontal-empty
+  "(<div>{/* {} */}</div>)"
+  "(<div>{}</div>)"
+  'uncomment-region
+  (search-forward "{/*")
+  (backward-char 3)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (search-forward "*/}"))
+
+(rjsx-deftest-comment
+  uncomment-region-wrapped-expr-horizontal-empty-comment
+  "(<div>{/* {/\\* {} *\\/} */}</div>)"
+  "(<div>{/* {} */}</div>)"
+  'uncomment-region
+  (search-forward "{/*")
+  (backward-char 3)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (search-forward "*/}"))
+
+(rjsx-deftest-comment
+  uncomment-region-wrapped-expr-vertical-inner
+  "(
+  <div>
+    {
+      /* [1, 2, 3].map(num => ( */
+      /*   num * num */
+      /* )) */
+    }
+  </div>
+)"
+  "(
+  <div>
+    {
+      [1, 2, 3].map(num => (
+        num * num
+      ))
+    }
+  </div>
+)"
+  'uncomment-region
+  (forward-line 3)
+  (backward-char 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 4))
+
+(rjsx-deftest-comment
+  uncomment-region-wrapped-expr-vertical-outer
+  "(
+  <div>
+    {/* { */}
+    {/*   [1, 2, 3].map(num => ( */}
+    {/*     num * num */}
+    {/*   )) */}
+    {/* } */}
+  </div>
+)"
+  "(
+  <div>
+    {
+      [1, 2, 3].map(num => (
+        num * num
+      ))
+    }
+  </div>
+)"
+  'uncomment-region
+  (forward-line 2)
+  (backward-char 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (forward-line 6))
+
+(rjsx-deftest-comment
+  comment-region-text-horizontal
+  "(<div>hello</div>)"
+  "(<div>{/* hello */}</div>)"
+  'comment-region
+  (search-forward "h")
+  (backward-char 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (search-forward "o"))
+
+(rjsx-deftest-comment
+  comment-region-text-vertical
+  "(
+  <div>
+    hello
+  </div>
+)"
+  "(
+  <div>
+    {/* hello */}
+  </div>
+)"
+  'comment-region
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (end-of-line))
+
+(rjsx-deftest-comment
+  uncomment-region-text-horizontal
+  "(<div>{/* hello */}</div>)"
+  "(<div>hello</div>)"
+  'uncomment-region
+  (search-forward "{")
+  (backward-char 1)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (search-forward "}"))
+
+(rjsx-deftest-comment
+  uncomment-region-text-vertical
+  "(
+  <div>
+    {/* hello */}
+  </div>
+)"
+  "(
+  <div>
+    hello
+  </div>
+)"
+  'uncomment-region
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (end-of-line))
+
+(rjsx-deftest-comment
+  comment-quote-nested
+  "(
+  <div>
+    {/* <span>hello</span> */}
+  </div>
+)"
+  "(
+  <div>
+    {/* {/\\* <span>hello</span> *\\/} */}
+  </div>
+)"
+  'comment-region
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (end-of-line))
+
+(rjsx-deftest-comment
+  uncomment-quote-nested
+  "(
+  <div>
+    {/* {/\\* <span>hello</span> *\\/} */}
+  </div>
+)"
+  "(
+  <div>
+    {/* <span>hello</span> */}
+  </div>
+)"
+  'uncomment-region
+  (forward-line 2)
+  (transient-mark-mode 1)
+  (set-mark (point))
+  (end-of-line))
+
+
 ;;; rjsx-tests.el ends here
