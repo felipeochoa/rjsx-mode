@@ -997,6 +997,55 @@ Currently only forms with syntax errors are supported.
 
 
 ;; Indentation
+(ert-deftest rjsx-indent-region ()
+  (ert-with-test-buffer (:name 'rjsx-indent-region)
+    (let ((fixture "(
+  <div>
+                {
+[1,2,3].map(num => {
+       return (<div/>);
+})
+}
+       <div
+id=\"1\"
+>
+1
+  <img
+ src=\"\"
+   alt=\"\"
+      wtf={() => (
+      <div>whatever</div>
+           )}
+ />
+    </div>
+</div>
+)")
+          (expected "(
+    <div>
+        {
+            [1,2,3].map(num => {
+                return (<div/>);
+            })
+        }
+        <div
+            id=\"1\"
+        >
+            1
+            <img
+                src=\"\"
+                alt=\"\"
+                wtf={() => (
+                    <div>whatever</div>
+                )}
+            />
+        </div>
+    </div>
+)"))
+      (insert fixture)
+      (rjsx-mode)
+      (js2-reparse)
+      (indent-region (point-min) (point-max))
+      (should (string= (buffer-substring-no-properties (point-min) (point-max)) expected)))))
 
 (ert-deftest rjsx-indentation-1 ()
   "Regression test for #67."
