@@ -68,12 +68,10 @@ parse tree gain access to the JSX structure.
 
 ## Bugs, contributing
 
-Please submit any bugs or feature requests on the GitHub tracker.
-
-**Indentation bugs**: This mode does not add any indentation
-improvements to the one built into `js-mode`. Please try reproducing
-any indentation bugs with `js2-jsx-mode` and report them using `M-x
-report-emacs-bug`.
+Please submit any bugs or feature requests on the GitHub tracker. Since this
+mode is based on `js2`, it is possible that bugs you encounter with it stem from
+there. Please try reproducing bugs using `js2-jsx-mode` if relevant. If the bug
+is in `js2`, please report it using `M-x report-emacs-bug`.
 
 ## License
 
