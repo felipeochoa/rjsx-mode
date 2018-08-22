@@ -988,6 +988,15 @@ PREDICATE."
       (setq ancestor (js2-node-parent ancestor)))
     ancestor))
 
+(cl-defun rjsx--prev-sibling (node)
+  "Get the previous non-blank sibling of NODE."
+  (let* ((parent (js2-node-parent node)) prev)
+    (dolist (kid (rjsx-node-kids parent))
+      (cond
+       ((eq kid node) (cl-return-from rjsx--prev-sibling prev))
+       ((and (rjsx-text-p kid) (string-blank-p (rjsx-text-value kid))))
+       (t (setq prev kid))))))
+
 
 
 ;; Comment handling
@@ -1323,17 +1332,7 @@ Fixes:
         (rjsx-indent-with-spaces cur-pos (js-indent-line)))
        ;; Get around `js-indent-line' bug with not aligning JSXElement sibling
        ;; after a JSX expression.
-       ((rjsx-wrapped-expr-p
-         (let* ((parent (js2-node-parent node))
-                (children (cl-loop for kid in (rjsx-node-kids parent)
-                                   if (or (not (rjsx-text-p kid))
-                                          (not (string-blank-p (rjsx-text-value kid))))
-                                   collect kid))
-                head)
-           ;; Look for the preceeding non-text node or non-blank text node
-           (while (and (setq head (car children) children (cdr children))
-                       (not (eq (car children) node))))
-           (if children head nil)))
+       ((rjsx-wrapped-expr-p (rjsx--prev-sibling node))
         (rjsx-indent-with-spaces cur-pos (js-indent-line)))
        (t
         (rjsx-indent-with-spaces cur-pos (js--as-sgml (sgml-indent-line))))))
