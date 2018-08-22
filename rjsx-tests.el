@@ -644,6 +644,27 @@ Currently only forms with syntax errors are supported.
 
 ;; Other odds and ends
 
+(ert-deftest rjsx-<->-token-class ()
+  (ert-with-test-buffer (:name 'origin)
+    (dolist (test '(("<" "div/" ">")
+                    ("<" "div" ">" "" "<" "/div" ">")
+                    ("<" "div" ">" "" "<" "/vid" ">")
+                    ("<" "" ">" "" "<" "/" ">")
+                    ("<" "div" ">" "\n  hi\n  {123 < 5}\n  " "<" "span/" ">" "\n" "<" "/div" ">")))
+      (erase-buffer)
+      (mapc #'insert test)
+      (rjsx-mode)
+      (js2-reparse)
+      (goto-char (point-min))
+      (let ((is-tag t))
+        (dolist (frag test)
+          (cond
+           ((string= frag ""))
+           (is-tag (should (memq (get-char-property (point) 'rjsx-class) '(< >))))
+           (t (should-not (memq (get-char-property (point) 'rjsx-class) '(< >)))))
+          (setq is-tag (not is-tag))
+          (forward-char (length frag)))))))
+
 (ert-deftest rjsx-node-opening-tag ()
   (ert-with-test-buffer (:name 'origin)
     (dolist (test '(("<div/>" "div" "div")

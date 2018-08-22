@@ -402,6 +402,11 @@ error and return a `js2-error-node'."
   "Fontify the current token with `rjsx-tag-bracket-face'."
   (js2-set-face (js2-current-token-beg) (js2-current-token-end) 'rjsx-tag-bracket-face 'record))
 
+(defsubst rjsx-record-token-class (cls)
+  "Record an 'rjsx-class text property with value CLS for the current token."
+  (js2-record-text-property (js2-current-token-beg) (js2-current-token-end)
+                            'rjsx-class cls))
+
 (defun rjsx-parse-top-xml ()
   "Parse a top level XML fragment.
 This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
@@ -412,6 +417,7 @@ This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
 
 (defun rjsx-parse-xml ()
   "Parse a complete xml node from start to end tag."
+  (rjsx-record-token-class '<)
   (rjsx-record-tag-bracket-face)
   (let ((pn (make-rjsx-node)) self-closing name-n name-str child child-name-str is-fragment)
     (rjsx-maybe-message "Starting rjsx-parse-xml after <")
@@ -442,14 +448,15 @@ This is the entry point when ‘js2-parse-unary-expr’ finds a '<' character"
         (rjsx-maybe-message "next type: `%s'" (js2-peek-token))
         (if (setq self-closing (js2-match-token js2-DIV))
             (progn
-              (js2-record-text-property (js2-current-token-beg) (js2-current-token-end)
-                                        'rjsx-class 'self-closing-slash)
+              (rjsx-record-token-class 'self-closing-slash)
               (rjsx-record-tag-bracket-face)
               ;; TODO: How do we un-mark old slashes?
               (when (js2-must-match js2-GT "msg.no.gt.after.slash"
                                     (js2-node-pos pn) (- (js2-current-token-end) (js2-node-pos pn)))
+                (rjsx-record-token-class '>)
                 (rjsx-record-tag-bracket-face)))
           (when (js2-must-match js2-GT "msg.no.gt.in.opener" (js2-node-pos pn) (js2-node-len pn))
+            (rjsx-record-token-class '>)
             (rjsx-record-tag-bracket-face)))
         (rjsx-maybe-message "cleared opener closer, self-closing: %s" self-closing)
         (if self-closing
@@ -786,6 +793,7 @@ closing tag was parsed.
 EXPECT-FRAGMENT if t, indicates that `</>' should be parsed
 as a fragment closing node, and not as an empty tag."
   (let ((beg (js2-current-token-beg)) pn)
+    (rjsx-record-token-class '<)
     (rjsx-record-tag-bracket-face)
     (if (and (not expect-fragment) (setq pn (rjsx-parse-empty-tag)))
         pn
@@ -796,9 +804,9 @@ as a fragment closing node, and not as an empty tag."
                    (setq pn (make-rjsx-closing-tag :pos beg
                                                    :name (rjsx-parse-member-or-ns 'rjsx-tag)))
                    (js2-node-add-children pn (rjsx-closing-tag-name pn)))
-                 (if (js2-must-match js2-GT "msg.no.gt.in.closer" beg (- (js2-current-token-end) beg))
-                     (rjsx-record-tag-bracket-face)
-                   (rjsx-maybe-message "missing closing `>'"))
+                 (when (js2-must-match js2-GT "msg.no.gt.in.closer" beg (- (js2-current-token-end) beg))
+                   (rjsx-record-token-class '>)
+                   (rjsx-record-tag-bracket-face))
                  (setf (js2-node-len pn) (- (js2-current-token-end) beg))
                  pn)
         (rjsx-maybe-message "parsing a child XML item")
