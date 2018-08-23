@@ -1257,6 +1257,11 @@ id=\"1\"
   (rjsx-tests--test-indent
    "const c = <\n          divxyz abc={123}\n                 def/>;"))
 
+(ert-deftest rjsx-indentation-10 ()
+  "Empty line in JSX."
+  (rjsx-tests--test-indent
+   "const c = <div\n          \n            abc={123}\n            def/>;"))
+
 
 ;; Minor-mode
 

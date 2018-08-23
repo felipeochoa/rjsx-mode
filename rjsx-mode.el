@@ -1312,6 +1312,7 @@ Fixes:
                 (save-excursion (back-to-indentation) (point)))))
        ((memq cur-char '(?/ ?>))
         (rjsx--indent-line-to-offset node 0))
+       ((eq cur-char ?\n))
        (t (error "Don't know how to indent %s for JSX node" (make-string 1 cur-char)))))
      ((and (rjsx-identifier-p parent)
            (rjsx-member-p (js2-node-parent parent))
