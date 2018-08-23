@@ -1054,23 +1054,23 @@ id=\"1\"
 )"
    "(
     <div>
-        {
-            [1,2,3].map(num => {
-                return (<div/>);
-            })
-        }
-        <div
-            id=\"1\"
-        >
-            1
-            <img
-                src=\"\"
-                alt=\"\"
-                wtf={() => (
-                    <div>whatever</div>
-                )}
-            />
-        </div>
+      {
+          [1,2,3].map(num => {
+              return (<div/>);
+          })
+      }
+      <div
+        id=\"1\"
+      >
+        1
+        <img
+          src=\"\"
+          alt=\"\"
+          wtf={() => (
+              <div>whatever</div>
+          )}
+        />
+      </div>
     </div>
 )"))
 
@@ -1079,15 +1079,15 @@ id=\"1\"
   (rjsx-tests--test-indent "function Example(props) {
     return (
         <ul>
-            {
-                [1,2,3].map(lang => {
-                    return(
-                        <li key={lang}>
-                            {lang}
-                        </li>
-                    )
-                })
-            }
+          {
+              [1,2,3].map(lang => {
+                  return(
+                      <li key={lang}>
+                        {lang}
+                      </li>
+                  )
+              })
+          }
         </ul>
     )
 }" nil 'rjsx-indentation-1))
@@ -1105,10 +1105,10 @@ id=\"1\"
 )"
    "(
     <App>
-        <div>
-            {variable1}
-            <Component/>
-        </div>
+      <div>
+        {variable1}
+        <Component/>
+      </div>
     </App>
 )"))
 
@@ -1130,12 +1130,12 @@ id=\"1\"
    "function F() {
     return (
         <Router>
-            <Bar>
-                <Route exact path='/foo' render={() => (
-                    <div>nothing</div>
-                )} />
-                <Route exact path='/bar' />
-            </Bar>
+          <Bar>
+            <Route exact path='/foo' render={() => (
+                <div>nothing</div>
+            )} />
+            <Route exact path='/bar' />
+          </Bar>
         </Router>
     )
 }"))
@@ -1160,11 +1160,11 @@ id=\"1\"
     render () {
         return (
             <div>
-                <ul className='tocListRoot'>
-                    { this.state.list.map((item) => {
-                        return (<div />)
-                    })}
-                </ul>
+              <ul className='tocListRoot'>
+                { this.state.list.map((item) => {
+                    return (<div />)
+                })}
+              </ul>
             </div>
         )
     }
@@ -1185,12 +1185,12 @@ id=\"1\"
 )"
    "(
     <div>
-        <div
-            wtf={(
-                () => 123
-            )}
-        >
-        </div>
+      <div
+        wtf={(
+            () => 123
+        )}
+      >
+      </div>
     </div>
 )"))
 
@@ -1208,12 +1208,12 @@ id=\"1\"
     </div>
 )" "(
     <div>
-        <div
-            wtf={(
-                <div>whatever</div>
-            )}
-        >
-        </div>
+      <div
+        wtf={(
+            <div>whatever</div>
+        )}
+      >
+      </div>
     </div>
 )"))
 
@@ -1232,13 +1232,13 @@ id=\"1\"
     </div>
 )" "(
     <div>
-        <div
-            wtf={(
-                <div>whatever</div>
-            )}
-            id='123'
-        >
-        </div>
+      <div
+        wtf={(
+            <div>whatever</div>
+        )}
+        id='123'
+      >
+      </div>
     </div>
 )"))
 
@@ -1250,7 +1250,7 @@ id=\"1\"
 (ert-deftest rjsx-indentation-9 ()
   "Line break after opening '<'; attributes on their own lines."
   (rjsx-tests--test-indent
-   "const c = <\n          divxyz\n              abc={123}\n              def/>;"))
+   "const c = <\n          divxyz\n            abc={123}\n            def/>;"))
 
 (ert-deftest rjsx-indentation-10 ()
   "Line brak after opening '<'; 1st attribute in same line as name."

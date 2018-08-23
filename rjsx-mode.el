@@ -1294,8 +1294,7 @@ Fixes:
   (unless rjsx--indent-region-p
     (js2-reparse))
 
-  (let* ((sgml-basic-offset js-indent-level) ;; `sgml-indent-line' can only indent by spaces
-         (indent-tabs-mode nil)
+  (let* ((indent-tabs-mode nil)
          (cur-pos (save-excursion (back-to-indentation) (point)))
          (cur-char (char-after cur-pos))
          (node (js2-node-at-point (- cur-pos rjsx--indent-running-offset)))
