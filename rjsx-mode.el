@@ -1358,12 +1358,12 @@ Fixes:
                   cur-pos)))))
 
 (defun rjsx-indent-region (start end)
-  (js2-mode-wait-for-parse
-   (lambda ()
-     (let ((rjsx--indent-region-p t)
-           (rjsx--indent-running-offset 0)
-           (rjsx--node-abs-pos-cache (make-hash-table)))
-       (js2-indent-region start end)))))
+  "Indent the region from START to END as JS/JSX."
+  (js2-reparse)
+  (let ((rjsx--indent-region-p t)
+        (rjsx--indent-running-offset 0)
+        (rjsx--node-abs-pos-cache (make-hash-table)))
+    (js2-indent-region start end)))
 
 
 (provide 'rjsx-mode)
