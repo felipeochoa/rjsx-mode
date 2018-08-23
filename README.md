@@ -27,7 +27,8 @@ Alternatively, you can download `rjsx-mode.el` from this repository and use
 
 `js2-mode` does not include a JSX parser, but rather an E4X parser, which
 means it gets confused with certain JSX constructs. This mode extends the
-`js2` parser to support all JSX constructs and proper syntax highlighting.
+`js2** parser to support all JSX constructs and proper syntax highlighting
+and **indentation**.
 
 `rjsx-mode` adds some electrcity to `<` and `C-d` to make adding new
 JSX elements less repetitive:
@@ -46,6 +47,8 @@ The result is you can do the following:
 
 Some features that this mode adds to `js2`:
 
+* Proper indentation of JSX regardless of how you write it. (No need to wrap
+  in parentheses!)
 * Highlighting JSX tag names and attributes (using the `rjsx-tag` and
   `rjsx-attr` faces)
 * Parsing the spread operator `{...otherProps}`
@@ -65,6 +68,12 @@ your init file:
 
 Additionally, since `rjsx-mode` extends the `js2` AST, utilities using the
 parse tree gain access to the JSX structure.
+
+### Indentation
+
+`rjsx-mode` extends the built-in javascript indentation engine to correctly
+support JSX. You can configue the depth of indentation using `js-indent-level`
+and `sgml-basic-offset`, along with the various `js-indent-` variables.
 
 ## Bugs, contributing
 
