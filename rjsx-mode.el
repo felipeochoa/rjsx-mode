@@ -85,7 +85,8 @@ the `:around' combinator.  JS2-PARSER is the original XML parser."
 
 (defun rjsx-unadvice-js2 ()
   "Remove the rjsx advice on the js2 parser.  This will cause rjsx to stop working globally."
-  (advice-remove 'js2-parse-xml-initializer #'rjsx-parse-xml-initializer))
+  (advice-remove 'js2-parse-xml-initializer #'rjsx-parse-xml-initializer)
+  (advice-remove 'js--looking-at-operator-p #'rjsx--js--looking-at-operator-p-advice))
 
 
 (defface rjsx-tag
@@ -1234,6 +1235,14 @@ instead."
 
 ;; Indentation
 
+(defun rjsx--js--looking-at-operator-p-advice (orig-fun)
+  "Advice for `js--looking-at-operator-p' (ORIG-FUN) to handle JSX properly."
+  (if (memq (get-char-property (point) 'rjsx-class) '(< >))
+      nil
+    (apply orig-fun nil)))
+
+(advice-add 'js--looking-at-operator-p :around #'rjsx--js--looking-at-operator-p-advice)
+
 (defvar-local rjsx--indent-region-p nil
   "t when `indent-region' is running.")
 
@@ -1242,41 +1251,29 @@ instead."
 every line during `indent-region' so we don't have to reparse
 after indenting every line to update the AST node positions.")
 
-(defvar-local rjsx--indent-line-columns nil
-  "A list of indent columns on a per-line basis. The car is the
-  indent column of the last line, cadr the indent column of the
-  second-to-last line and so on...")
+(defvar-local rjsx--node-abs-pos-cache nil
+  "Cache for JSX nodes' indent levels.
+Used during `indent-region' calls to avoid repeated
+`js2-node-abs-pos' calls.")
 
-(defun rjsx--indent-update-state (origin)
-  "If `rjsx--indent-region-p' is non-nil, updates
-`rjsx--indent-running-offset' by adding to it the offset between
-point and ORIGIN, and prepend the current column to
-`rjsx--indent-line-columns'."
-  (when rjsx--indent-region-p
-    (let ((offset (- (point) origin)))
-      (setq rjsx--indent-running-offset
-            (+ rjsx--indent-running-offset offset)
-            rjsx--indent-line-columns
-            (cons (current-column) rjsx--indent-line-columns)))))
+(defun rjsx--node-abs-pos (node)
+  "Caching version of `js2-node-abs-pos' for NODE."
+  (if (null rjsx--node-abs-pos-cache)
+      (js2-node-abs-pos node)
+    (let ((cached (gethash node rjsx--node-abs-pos-cache)))
+      (or cached
+          (setf (gethash node rjsx--node-abs-pos-cache)
+                (js2-node-abs-pos node))))))
 
-(defmacro rjsx-indent-with-spaces (cur-pos &rest body)
-  "Run indentation commands BODY with `indent-tabs-mode' set to
-nil and update indentation state is `indent-region' is running."
-  `(progn
-     (let ((indent-tabs-mode nil))
-       ,@body)
-     (rjsx--indent-update-state ,cur-pos)))
+(defsubst rjsx--node-indent-level (node)
+  "Return the indent level for NODE."
+  (save-excursion (goto-char (rjsx--node-abs-pos node)) (current-column)))
 
-(defvar-local rjsx--indent-self-closing-node-line-number-table
-  (make-hash-table)
-  "Table used to look up the line number of the beginning
-  position of a self-closing node during `indent-region'.")
-
-(defun rjsx--indent-self-closing-node-line-number-table-put (node)
-  (when (and (not (gethash node rjsx--indent-self-closing-node-line-number-table))
-             (rjsx-node-p node)
-             (not (rjsx-node-closing-tag node)))
-    (puthash node (line-number-at-pos) rjsx--indent-self-closing-node-line-number-table)))
+(defsubst rjsx--indent-line-to-offset (node offset)
+  "Indent current line relative to NODE, which must be an `rjsx-node' instance.
+OFFSET indicates the number of spaces to add."
+  (indent-line-to
+   (+ offset (rjsx--node-indent-level node))))
 
 (defun rjsx-indent-line ()
   "Similar to `js-jsx-indent-line', but fixes indentation bug
@@ -1298,70 +1295,74 @@ Fixes:
     (js2-reparse))
 
   (let* ((sgml-basic-offset js-indent-level) ;; `sgml-indent-line' can only indent by spaces
+         (indent-tabs-mode nil)
          (cur-pos (save-excursion (back-to-indentation) (point)))
          (cur-char (char-after cur-pos))
-         (node (js2-node-at-point (- cur-pos rjsx--indent-running-offset))))
+         (node (js2-node-at-point (- cur-pos rjsx--indent-running-offset)))
+         (parent (js2-node-parent node)))
     (cond
      ((rjsx-node-p node)
-      (when rjsx--indent-region-p
-        (rjsx--indent-self-closing-node-line-number-table-put node))
       (cond
-       ;; Top-level tag
-       ((not (rjsx-node-p (js2-node-parent node)))
-        ;; Prevent `js-indent-line' from treating the leading `<' as a continued expression
-        (cl-letf (((symbol-function #'js--continued-expression-p) 'ignore))
-          (rjsx-indent-with-spaces cur-pos (js-indent-line))))
-       ;; Align the /> of a multi-line self-closing tag
-       ((and (not (rjsx-node-closing-tag node))
-             (save-excursion (goto-char cur-pos) (looking-at-p "/[[:space:]]*>")))
-        (rjsx-indent-with-spaces
-         cur-pos
-         (indent-line-to
-          (let ((i (1- (- (line-number-at-pos)
-                          (if rjsx--indent-region-p
-                              (gethash node rjsx--indent-self-closing-node-line-number-table)
-                            (line-number-at-pos (js2-node-abs-pos node)))))))
-            (or (nth i rjsx--indent-line-columns)
-                (save-excursion
-                  (goto-char (js2-node-abs-pos node))
-                  (current-column)))))))
-       ;; Fix `sgml-calculate-indent''s issue with not aligning the ">" on
-       ;; a multi-line open tag
-       ((and (rjsx-node-p (js2-node-parent node))
-             (char-equal ?> cur-char))
-        (rjsx-indent-with-spaces cur-pos (js-indent-line)))
-       ;; Get around `js-indent-line' bug with not aligning JSXElement sibling
-       ;; after a JSX expression.
-       ((rjsx-wrapped-expr-p (rjsx--prev-sibling node))
-        (rjsx-indent-with-spaces cur-pos (js-indent-line)))
-       (t
-        (rjsx-indent-with-spaces cur-pos (js--as-sgml (sgml-indent-line))))))
-     ;; Anything that looks like JSX but doesn't need special handling
-     ((or (rjsx-closing-tag-p node)
-          (and (js2-name-node-p node)
-               (rjsx-identifier-p (js2-node-parent node))
-               (rjsx-attr-p (js2-node-parent (js2-node-parent node))))
-          (rjsx-spread-p node)
-          (rjsx-text-p node)
-          (rjsx-wrapped-expr-p node))
-      (rjsx-indent-with-spaces cur-pos (js--as-sgml (sgml-indent-line))))
-     ;; Inside JSX expression or looking at the end of it
-     ((rjsx-ancestor node #'rjsx-wrapped-expr-p)
-      (if (memq cur-char '(?\[ ?\] ?\) ?\} ?, ?\;))
-          (rjsx-indent-with-spaces cur-pos (js-indent-line))
-        (rjsx-indent-with-spaces cur-pos (js--expression-in-sgml-indent-line))))
-     ;; Outside of JSX context
-     (t
-      (js-indent-line)
-      (rjsx--indent-update-state cur-pos)))))
+       ((eq cur-char ?<)
+        (if (rjsx-node-p parent)
+            (rjsx--indent-line-to-offset parent sgml-basic-offset)
+          ;; Top-level node, indent as JS
+          (js-indent-line))
+        (when rjsx--node-abs-pos-cache
+          (setf (gethash node rjsx--node-abs-pos-cache)
+                (save-excursion (back-to-indentation) (point)))))
+       ((memq cur-char '(?/ ?>))
+        (rjsx--indent-line-to-offset node 0))
+       (t (error "Don't know how to indent %s for JSX node" (make-string 1 cur-char)))))
+     ((and (rjsx-identifier-p parent)
+           (rjsx-member-p (js2-node-parent parent))
+           (rjsx-node-p (js2-node-parent (js2-node-parent parent))))
+      (rjsx--indent-line-to-offset (js2-node-parent (js2-node-parent parent)) 0))
+
+     ;; JSX children
+     ((rjsx-closing-tag-p node)
+      (rjsx--indent-line-to-offset parent 0))
+     ((rjsx-text-p node)
+      (rjsx--indent-line-to-offset parent sgml-basic-offset))
+     ((rjsx-wrapped-expr-p node)
+      (if (eq cur-char ?})
+          (js-indent-line)
+        (rjsx--indent-line-to-offset parent sgml-basic-offset)))
+
+     ;; Attribute-like (spreads, attributes, etc.)
+     ;; if first attr is on same line as tag, then align
+     ;; otherwise indent to parent level + sgml-basic-offset
+     ((or (rjsx-identifier-p node)
+          (and (rjsx-identifier-p parent)
+               (rjsx-attr-p (js2-node-parent parent)))
+          (rjsx-spread-p node))
+      (let* ((tag (or (rjsx-ancestor node #'rjsx-node-p)
+                      (error "Did not find containing JSX tag for attributes")))
+             (name (rjsx-node-name tag))
+             column)
+        (save-excursion
+          (goto-char (rjsx--node-abs-pos tag))
+          (setq column (current-column))
+          (when name (forward-char (js2-node-end name)) (skip-chars-forward " \t"))
+          (if (eolp)
+              (setq column (+ column sgml-basic-offset sgml-attribute-offset))
+            (setq column (current-column))))
+        (indent-line-to column)))
+
+     ;; Everything else indent as javascript
+     (t (js-indent-line)))
+
+    (when rjsx--indent-region-p
+      (cl-incf rjsx--indent-running-offset
+               (- (save-excursion (back-to-indentation) (point))
+                  cur-pos)))))
 
 (defun rjsx-indent-region (start end)
   (js2-mode-wait-for-parse
    (lambda ()
      (let ((rjsx--indent-region-p t)
            (rjsx--indent-running-offset 0)
-           (rjsx--indent-line-columns nil)
-           (rjsx--indent-self-closing-node-line-number-table (make-hash-table)))
+           (rjsx--node-abs-pos-cache (make-hash-table)))
        (js2-indent-region start end)))))
 
 

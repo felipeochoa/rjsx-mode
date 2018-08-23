@@ -1018,9 +1018,20 @@ Currently only forms with syntax errors are supported.
 
 
 ;; Indentation
+(defun rjsx-tests--test-indent (pre &optional post test-buffer-name)
+  "Assert that calling `indent-region' on PRE results in POST.
+TEST-BUFFER-NAME is used for `ert-with-test-buffer'."
+  (unless post (setq post pre))
+  (ert-with-test-buffer (:name (or test-buffer-name 'rjsx-indentation-test))
+    (insert pre)
+    (rjsx-mode)
+    (js2-reparse)
+    (indent-region (point-min) (point-max))
+    (should (string= (buffer-substring-no-properties (point-min) (point-max)) post))))
+
 (ert-deftest rjsx-indent-region ()
-  (ert-with-test-buffer (:name 'rjsx-indent-region)
-    (let ((fixture "(
+  (rjsx-tests--test-indent
+   "(
   <div>
                 {
 [1,2,3].map(num => {
@@ -1040,8 +1051,8 @@ id=\"1\"
  />
     </div>
 </div>
-)")
-          (expected "(
+)"
+   "(
     <div>
         {
             [1,2,3].map(num => {
@@ -1062,34 +1073,189 @@ id=\"1\"
         </div>
     </div>
 )"))
-      (insert fixture)
-      (rjsx-mode)
-      (js2-reparse)
-      (indent-region (point-min) (point-max))
-      (should (string= (buffer-substring-no-properties (point-min) (point-max)) expected)))))
 
 (ert-deftest rjsx-indentation-1 ()
   "Regression test for #67."
-  (ert-with-test-buffer (:name 'rjsx-indentation-1)
-    (let ((correct "function Example(props) {
-  return (
-    <ul>
-      {
-        [1,2,3].map(lang => {
-          return(
-            <li key={lang}>
-              {lang}
-            </li>
-          )
-        })
-      }
-    </ul>
-  )
+  (rjsx-tests--test-indent "function Example(props) {
+    return (
+        <ul>
+            {
+                [1,2,3].map(lang => {
+                    return(
+                        <li key={lang}>
+                            {lang}
+                        </li>
+                    )
+                })
+            }
+        </ul>
+    )
+}" nil 'rjsx-indentation-1))
+
+(ert-deftest rjsx-indentation-2 ()
+  "Indentation sample from mooz/js2-mode#490."
+  (rjsx-tests--test-indent
+   "(
+<App>
+    <div>
+        {variable1}
+        <Component/>
+</div>
+</App>
+)"
+   "(
+    <App>
+        <div>
+            {variable1}
+            <Component/>
+        </div>
+    </App>
+)"))
+
+(ert-deftest rjsx-indentation-3 ()
+  "Indentation sample from mooz/js2-mode#462"
+  (rjsx-tests--test-indent
+   "function F() {
+    return (
+        <Router>
+          <Bar>
+            <Route exact path='/foo' render={() => (
+              <div>nothing</div>
+            )} />
+          <Route exact path='/bar' />
+        </Bar>
+          </Router>
+      )
+}"
+   "function F() {
+    return (
+        <Router>
+            <Bar>
+                <Route exact path='/foo' render={() => (
+                    <div>nothing</div>
+                )} />
+                <Route exact path='/bar' />
+            </Bar>
+        </Router>
+    )
 }"))
-      (insert correct)
-      (rjsx-mode)
-      (indent-region (point-min) (point-max))
-      (should (string= correct (buffer-string))))))
+
+(ert-deftest rjsx-indentation-4 ()
+  "Indentation sample from mooz/js2-mode#451."
+  (rjsx-tests--test-indent
+   "class Classy extends React.Component {
+  render () {
+    return (
+      <div>
+        <ul className='tocListRoot'>
+          { this.state.list.map((item) => {
+            return (<div />)
+          })}
+      </ul>
+        </div>
+    )
+  }
+}"
+   "class Classy extends React.Component {
+    render () {
+        return (
+            <div>
+                <ul className='tocListRoot'>
+                    { this.state.list.map((item) => {
+                        return (<div />)
+                    })}
+                </ul>
+            </div>
+        )
+    }
+}"))
+
+(ert-deftest rjsx-indentation-5 ()
+  "Trailing `>' with arrow function."
+  (rjsx-tests--test-indent
+   "(
+    <div>
+        <div
+            wtf={(
+                () => 123
+            )}
+            >
+        </div>
+    </div>
+)"
+   "(
+    <div>
+        <div
+            wtf={(
+                () => 123
+            )}
+        >
+        </div>
+    </div>
+)"))
+
+(ert-deftest rjsx-indentation-6 ()
+  "Trailing `>' with nested JSX."
+  (rjsx-tests--test-indent
+   "(
+    <div>
+        <div
+            wtf={(
+                <div>whatever</div>
+            )}
+                >
+        </div>
+    </div>
+)" "(
+    <div>
+        <div
+            wtf={(
+                <div>whatever</div>
+            )}
+        >
+        </div>
+    </div>
+)"))
+
+(ert-deftest rjsx-indentation-7 ()
+  "Attribute after nested JSX."
+  (rjsx-tests--test-indent
+   "(
+    <div>
+        <div
+            wtf={(
+                <div>whatever</div>
+            )}
+                id='123'
+                >
+        </div>
+    </div>
+)" "(
+    <div>
+        <div
+            wtf={(
+                <div>whatever</div>
+            )}
+            id='123'
+        >
+        </div>
+    </div>
+)"))
+
+(ert-deftest rjsx-indentation-8 ()
+  "Inline JSX."
+  (rjsx-tests--test-indent
+   "const c = <div abc={123}\n               def/>;"))
+
+(ert-deftest rjsx-indentation-9 ()
+  "Line break after opening '<'; attributes on their own lines."
+  (rjsx-tests--test-indent
+   "const c = <\n          divxyz\n              abc={123}\n              def/>;"))
+
+(ert-deftest rjsx-indentation-10 ()
+  "Line brak after opening '<'; 1st attribute in same line as name."
+  (rjsx-tests--test-indent
+   "const c = <\n          divxyz abc={123}\n                 def/>;"))
 
 
 ;; Minor-mode
