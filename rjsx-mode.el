@@ -1293,9 +1293,16 @@ Fixes:
 "
   (unless rjsx--indent-region-p
     (js2-reparse))
+  (let ((delta (- (point) (progn (back-to-indentation) (point)))))
+    (rjsx--indent-line-1)
+    (back-to-indentation)
+    (when (> delta 0)
+      (forward-char delta))))
 
+(defun rjsx--indent-line-1 ()
+  "Helper for `rjsx-indent-line'."
   (let* ((indent-tabs-mode nil)
-         (cur-pos (save-excursion (back-to-indentation) (point)))
+         (cur-pos (point))
          (cur-char (char-after cur-pos))
          (node (js2-node-at-point (- cur-pos rjsx--indent-running-offset)))
          (parent (js2-node-parent node)))

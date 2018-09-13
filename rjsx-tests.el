@@ -1263,6 +1263,45 @@ id=\"1\"
    "const c = <div\n          \n            abc={123}\n            def/>;"
    "const c = <div\n            \n            abc={123}\n            def/>;"))
 
+(defun rjsx-tests--test-point-after-indent (text-before text-after post-offset)
+  "Test that point is correctly placed after indenting.
+Insert TEXT-BEFORE and TEXT-AFTER into a buffer, leaving point
+between them.  Then run `rjsx-indent-line' and assert that it is
+on the same line number and POST-OFFSET columns in."
+  (ert-with-test-buffer (:name 'rjsx-tests--test-point-after-indent)
+    (insert text-before)
+    (save-excursion (insert text-after))
+    (rjsx-mode)
+    (js2-reparse)
+    (let ((line-no (line-number-at-pos)))
+      (rjsx-indent-line)
+      (should (= (line-number-at-pos) line-no))
+      (should (= (- (current-column) (current-indentation)) post-offset)))))
+
+(ert-deftest rjsx-indentation-point-in-whitespace ()
+  (rjsx-tests--test-point-after-indent
+   "const c = <div\n      " "      abc={123}\n            def/>;" 0)
+  (rjsx-tests--test-point-after-indent
+   "const c = <div\n" "abc={123}\n            def/>;" 0)
+  (rjsx-tests--test-point-after-indent
+   "const c = <div\n                        " "     abc={123}\n            def/>;" 0))
+
+(ert-deftest rjsx-indentation-point-in-body ()
+  (rjsx-tests--test-point-after-indent
+   "const c = <div\nabc={1" "23}\n            def/>;" 6)
+  (rjsx-tests--test-point-after-indent
+   "const c = <div\n                   abc={1" "23}\n            def/>;" 6)
+  (rjsx-tests--test-point-after-indent
+   "const c = <div\n            abc={1" "23}\n            def/>;" 6))
+
+(ert-deftest rjsx-indentation-point-at-eol ()
+  (rjsx-tests--test-point-after-indent
+   "const c = <div\nabc={123}" "\n            def/>;" 9)
+  (rjsx-tests--test-point-after-indent
+   "const c = <div\n                   abc={123}" "\n            def/>;" 9)
+  (rjsx-tests--test-point-after-indent
+   "const c = <div\n            abc={123}" "\n            def/>;" 9))
+
 
 ;; Minor-mode
 
