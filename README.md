@@ -75,6 +75,11 @@ parse tree gain access to the JSX structure.
 support JSX. You can configue the depth of indentation using `js-indent-level`
 and `sgml-basic-offset`, along with the various `js-indent-` variables.
 
+**Indenting with tabs**: This is not currently supported. You can either submit
+a PR if interested (look at issue #85) or revert to using the built-in
+indentation mode by adding `(setq-local indent-line-function
+'js-jsx-indent-line)` to your `rjsx-mode-hook`.
+
 ## Bugs, contributing
 
 Please submit any bugs or feature requests on the GitHub tracker. Since this
