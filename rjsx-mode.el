@@ -973,6 +973,48 @@ NEW-NAME is the name to give the tag."
 
 (define-key rjsx-mode-map (kbd "C-c C-r") 'rjsx-rename-tag-at-point)
 
+
+(defun rjsx-jump-closing-tag ()
+  "Goto closing tag of focused tab body"
+  (interactive)
+  (let* ((tag (rjsx--tag-at-point))
+         (closer (and tag (rjsx-node-closing-tag tag))))
+    (cond
+     ((null tag) (message "No JSX tag found at point"))
+     (t
+      (goto-char (+ 1 (js2-node-abs-pos closer)))
+     ))))
+
+
+(defun rjsx-jump-opening-tag ()
+  "Goto opening tag of focused tab body"
+  (interactive)
+  (let* ((tag (rjsx--tag-at-point))
+         (closer (and tag (rjsx-node-closing-tag tag))))
+    (cond
+     ((null tag) (message "No JSX tag found at point"))
+     (t
+      (goto-char (+ 1 (js2-node-abs-pos tag)))
+      ))))
+
+(defun rjsx-jump-tag ()
+   "Switch between opening and closing tag of focused tab body"
+  (interactive)
+  (let* ((tag (rjsx--tag-at-point))
+         (closer (and tag (rjsx-node-closing-tag tag))))
+    (cond
+     ((null tag) (message "No JSX tag found at point"))
+     ((null closer) (message "No closing JSX tag found at point"))
+     ((eq (line-number-at-pos (js2-node-abs-pos tag)) (line-number-at-pos)) (rjsx-jump-closing-tag))
+     ((eq (line-number-at-pos (js2-node-abs-pos closer)) (line-number-at-pos)) (rjsx-jump-opening-tag))
+     (t
+      (rjsx-jump-closing-tag)
+      ))))
+
+
+
+(define-key rjsx-mode-map (kbd "C-c C-g") 'rjsx-jump-tag)
+
 
 
 ;; Utilities
