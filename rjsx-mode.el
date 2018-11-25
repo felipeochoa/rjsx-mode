@@ -975,7 +975,7 @@ NEW-NAME is the name to give the tag."
 
 
 (defun rjsx-jump-closing-tag ()
-  "Goto closing tag of focused tab body"
+  "Go to closing tag of tag at point."
   (interactive)
   (let* ((tag (rjsx--tag-at-point))
          (closer (and tag (rjsx-node-closing-tag tag))))
