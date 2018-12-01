@@ -981,6 +981,7 @@ NEW-NAME is the name to give the tag."
          (closer (and tag (rjsx-node-closing-tag tag))))
     (cond
      ((null tag) (message "No JSX tag found at point"))
+     ((null closer) (message "JSX tag is self closing"))
      (t
       (goto-char (+ 1 (js2-node-abs-pos closer)))))))
 
