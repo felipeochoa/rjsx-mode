@@ -989,7 +989,8 @@ NEW-NAME is the name to give the tag."
 (defun rjsx-jump-opening-tag ()
   "Goto opening tag of focused tab body"
   (interactive)
-  (let* ((tag (rjsx--tag-at-point)))
+  (let* ((tag (rjsx--tag-at-point))
+         (closer (and tag (rjsx-node-closing-tag tag))))
     (cond
      ((null tag) (message "No JSX tag found at point"))
      (t
