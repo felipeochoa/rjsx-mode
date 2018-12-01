@@ -1007,7 +1007,7 @@ NEW-NAME is the name to give the tag."
      ((eq (line-number-at-pos (js2-node-abs-pos tag)) (line-number-at-pos)) (rjsx-jump-closing-tag))
      ((eq (line-number-at-pos (js2-node-abs-pos closer)) (line-number-at-pos)) (rjsx-jump-opening-tag))
      (t
-      (rjsx-jump-closing-tag)))))
+      (rjsx-jump-opening-tag)))))
 
 
 
