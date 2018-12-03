@@ -1302,6 +1302,29 @@ on the same line number and POST-OFFSET columns in."
   (rjsx-tests--test-point-after-indent
    "const c = <div\n            abc={123}" "\n            def/>;" 9))
 
+(ert-deftest rjsx-jump-closing-tag ()
+  "Test that point is correctly placed on jumping to closing tag"
+  (ert-with-test-buffer (:name 'rjsx-jump-closing-tag)
+    (erase-buffer)
+    (insert "let c = <div")
+    (save-excursion (insert ">\n</div>"))
+    (rjsx-mode)
+    (rjsx-jump-closing-tag)
+    (should (= (line-number-at-pos) 2))
+    (should (= (current-column) 1))))
+
+
+(ert-deftest rjsx-jump-opening-tag ()
+  "Test that point is correctly placed on jumping to opening tag"
+  (ert-with-test-buffer (:name 'rjsx-jump-opening-tag)
+    (erase-buffer)
+    (insert "let c = <div>\n</div")
+    (save-excursion (insert ">"))
+    (rjsx-mode)
+    (rjsx-jump-opening-tag)
+    (should (= (line-number-at-pos) 1))
+    (should (= (current-column) 9))
+    ))
 
 ;; Minor-mode
 
