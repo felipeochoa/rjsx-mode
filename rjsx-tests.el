@@ -1325,6 +1325,22 @@ on the same line number and POST-OFFSET columns in."
     (should (= (line-number-at-pos) 1))
     (should (= (current-column) 9))
     ))
+
+
+(ert-deftest rjsx-jump-tag ()
+  "Test that point is correctly placed on jumping to opening tag"
+  (ert-with-test-buffer (:name 'rjsx-jump-opening-tag)
+    (erase-buffer)
+    (insert "let c = <div>\n</div")
+    (save-excursion (insert ">"))
+    (rjsx-mode)
+    (rjsx-jump-tag)
+    (should (= (line-number-at-pos) 1))
+    (should (= (current-column) 9))
+    (rjsx-jump-tag)
+    (should (= (line-number-at-pos) 2))
+    (should (= (current-column) 1))
+    ))
 
 ;; Minor-mode
 
