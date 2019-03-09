@@ -34,6 +34,7 @@
 (require 'js2-mode)
 (eval-when-compile (require 'subr-x))
 (require 'newcomment)
+(require 'sgml-mode)
 
 (defgroup rjsx-mode nil
   "Support for JSX."
