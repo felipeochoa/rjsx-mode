@@ -2,7 +2,7 @@
 [![MELPA](https://melpa.org/packages/rjsx-mode-badge.svg)](https://melpa.org/#/rjsx-mode)
 [![Build Status](https://travis-ci.org/felipeochoa/rjsx-mode.svg?branch=master)](https://travis-ci.org/felipeochoa/rjsx-mode)
 
-This mode derives from `js2-jsx-mode`, extending its parser to support JSX syntax
+This mode derives from `js2-mode`, extending its parser to support JSX syntax
 according to the [official spec](https://facebook.github.io/jsx/).  This
 means you get all of the `js2` features plus proper syntax checking
 and highlighting of JSX code blocks.
@@ -84,7 +84,7 @@ indentation mode by adding `(setq-local indent-line-function
 
 Please submit any bugs or feature requests on the GitHub tracker. Since this
 mode is based on `js2`, it is possible that bugs you encounter with it stem from
-there. Please try reproducing bugs using `js2-jsx-mode` if relevant. If the bug
+there. Please try reproducing bugs using `js2-mode` if relevant. If the bug
 is in `js2`, please report it using `M-x report-emacs-bug`.
 
 ## License

@@ -49,7 +49,7 @@ parsing supports the magic `rjsx-electric-lt' and
   :type 'integer)
 
 ;;;###autoload
-(define-derived-mode rjsx-mode js2-jsx-mode "RJSX"
+(define-derived-mode rjsx-mode js2-mode "RJSX"
   "Major mode for editing JSX files."
   :lighter ":RJSX"
   :group 'rjsx-mode
