@@ -286,7 +286,10 @@ Sets KID's parent to N."
 
 (defun rjsx-member-full-name (n)
   "Return the string with N's combined names together."
-  (mapconcat 'rjsx-identifier-full-name (rjsx-member-idents n) "."))
+  (mapconcat #'rjsx-identifier-full-name
+             ;; Fix #89. There could be an error node here
+             (cl-remove-if-not #'rjsx-identifier-p (rjsx-member-idents n))
+             "."))
 
 (cl-defstruct (rjsx-attr
                (:include js2-node (type rjsx-JSX-ATTR))
