@@ -30,7 +30,7 @@ means it gets confused with certain JSX constructs. This mode extends the
 `js2** parser to support all JSX constructs and proper syntax highlighting
 and **indentation**.
 
-`rjsx-mode` adds some electrcity to `<` and `C-d` to make adding new
+`rjsx-mode` adds some electricity to `<` and `C-d` to make adding new
 JSX elements less repetitive:
 
 * `<` inserts `</>` whenever it would start a new JSX node (and simply
