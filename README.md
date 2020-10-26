@@ -1,5 +1,6 @@
 # rjsx-mode: A major mode for editing JSX files
 [![MELPA](https://melpa.org/packages/rjsx-mode-badge.svg)](https://melpa.org/#/rjsx-mode)
+[![MELPA Stable](https://stable.melpa.org/packages/rjsx-mode-badge.svg)](https://stable.melpa.org/#/rjsx-mode)
 [![Build Status](https://travis-ci.org/felipeochoa/rjsx-mode.svg?branch=master)](https://travis-ci.org/felipeochoa/rjsx-mode)
 
 This mode derives from `js2-mode`, extending its parser to support JSX syntax
